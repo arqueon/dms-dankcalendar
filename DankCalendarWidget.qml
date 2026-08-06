@@ -47,7 +47,8 @@ PluginComponent {
     property bool isLessThanOneMin: !isNow && remainingMs > 0 && remainingMs < 60000
     property bool hasEvent: eventSummary !== ""
     property string timeText: formatTimeRemaining()
-    property color timeColor: isNow ? "#66BB6A" : Theme.surfaceText
+    property string compactTimeText: formatCompactTimeRemaining()
+    property color timeColor: Theme.primary
     property string scriptPath: PluginService.pluginDirectory + "/dankCalendarAgenda/get-next-event"
     property string agendaScriptPath: PluginService.pluginDirectory + "/dankCalendarAgenda/get-agenda-events"
     property int agendaPastDays: pluginData.agendaPastDays ?? 7
@@ -101,6 +102,26 @@ PluginComponent {
             parts.push(minutes + "m");
 
         return parts.join("") || "<1m";
+    }
+
+    function formatCompactTimeRemaining() {
+        if (!hasEvent)
+            return "";
+        if (isNow)
+            return "Now";
+        if (isLessThanOneMin)
+            return "<1m";
+        if (remainingMs < 0)
+            return "";
+
+        var totalMinutes = Math.floor(remainingMs / 60000);
+        var days = Math.floor(totalMinutes / 1440);
+        if (days > 0)
+            return days + "d";
+        var hours = Math.floor(totalMinutes / 60);
+        if (hours > 0)
+            return hours + "h";
+        return Math.max(1, totalMinutes) + "m";
     }
 
     function parseLine(line) {
@@ -889,7 +910,7 @@ PluginComponent {
                 DankIcon {
                     name: "calendar_today"
                     size: iconSize
-                    color: root.hasEvent ? root.timeColor : Theme.surfaceVariantText
+                    color: Theme.primary
                     anchors.verticalCenter: parent.verticalCenter
                 }
 
@@ -999,18 +1020,19 @@ PluginComponent {
                 DankIcon {
                     name: "calendar_today"
                     size: iconSize
-                    color: root.hasEvent ? root.timeColor : Theme.surfaceVariantText
+                    color: Theme.primary
                     anchors.horizontalCenter: parent.horizontalCenter
                 }
 
                 // Compact countdown so it fits a narrow vertical bar. The event
                 // summary (which scrolls on the horizontal pill) is shown in a
                 // hover tooltip instead.
-                StyledText {
+                NumericText {
                     width: root.widgetThickness
-                    text: root.timeText
-                    font.pixelSize: Math.max(8, Math.round(Theme.fontSizeSmall * 0.7))
-                    font.weight: Font.Medium
+                    text: root.compactTimeText
+                    reserveText: "99d"
+                    font.pixelSize: Theme.fontSizeSmall
+                    font.weight: Font.Bold
                     color: root.timeColor
                     horizontalAlignment: Text.AlignHCenter
                     elide: Text.ElideRight
