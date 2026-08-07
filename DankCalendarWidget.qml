@@ -18,6 +18,7 @@ PluginComponent {
     property string eventSummary: ""
     property string eventStart: ""
     property string eventEnd: ""
+    property bool eventAllDay: false
     property bool isLoading: true
     property int refreshInterval: (pluginData.refreshInterval || 30) * 1000
     property int pillMaxWidth: pluginData.pillMaxWidth || 160
@@ -30,15 +31,15 @@ PluginComponent {
         if (!eventStart)
             return -1;
 
-        var startMs = new Date(eventStart).getTime();
+        var startMs = eventDate(eventStart, eventAllDay).getTime();
         return startMs - countdownNow;
     }
     property bool isNow: {
         if (nowWindowMinutes <= 0 || eventStart === "" || remainingMs > 0)
             return false;
 
-        var startMs = new Date(eventStart).getTime();
-        var endMs = eventEnd ? new Date(eventEnd).getTime() : startMs;
+        var startMs = eventDate(eventStart, eventAllDay).getTime();
+        var endMs = eventEnd ? eventDate(eventEnd, eventAllDay).getTime() : startMs;
         var duration = endMs - startMs;
         var maxWindow = nowWindowMinutes * 60000;
         var nowWindow = duration < maxWindow ? duration : maxWindow;
@@ -62,7 +63,7 @@ PluginComponent {
         var n = 0;
         for (var i = 0; i < agendaEvents.length; i++) {
             var ev = agendaEvents[i];
-            if (new Date(ev.end || ev.start).getTime() >= countdownNow)
+            if (eventDate(ev.end || ev.start, ev.allDay).getTime() >= countdownNow)
                 n++;
 
         }
@@ -141,6 +142,9 @@ PluginComponent {
         case "EVENT_END":
             eventEnd = val;
             break;
+        case "EVENT_ALL_DAY":
+            eventAllDay = val === "true";
+            break;
         }
     }
 
@@ -176,6 +180,30 @@ PluginComponent {
         return d.getFullYear() * 10000 + (d.getMonth() + 1) * 100 + d.getDate();
     }
 
+    // dcal serialises all-day events as UTC midnight of the calendar date:
+    // "2026-08-08T00:00:00Z" means "8 August", not an instant. Reading that
+    // back with the local getters lands a day early in any negative UTC offset
+    // (PDT: 7 August 17:00), which put the trip on the wrong day and made the
+    // pill count down to 17:00. Rebuild all-day dates on LOCAL midnight so
+    // every consumer — grouping, headers, sorting, phase, countdown — agrees
+    // with the calendar date the user typed. Timed events are real instants
+    // and pass through untouched.
+    function eventDate(iso, allDay) {
+        var d = new Date(iso);
+        if (allDay === true)
+            return new Date(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate());
+
+        return d;
+    }
+
+    // Qt.formatDate() converts the JS Date to a QDate in UTC, so it prints the
+    // wrong day whenever local time and UTC straddle midnight (a "Today"
+    // header reading tomorrow's date). Qt.formatDateTime() keeps local time
+    // and takes the same date-only format strings.
+    function formatLocalDate(d, fmt) {
+        return Qt.formatDateTime(d, fmt);
+    }
+
     // Flattens the sorted events into display rows: a "week" divider when
     // the week (Monday-keyed) changes, a shaded "day" header per date,
     // then that day's events. Row heights are fixed per kind so the total
@@ -192,7 +220,7 @@ PluginComponent {
         var lastDayKey = -1;
         var lastWeekKey = -1;
         for (var i = 0; i < events.length; i++) {
-            var d = new Date(events[i].start);
+            var d = root.eventDate(events[i].start, events[i].allDay);
             var k = dateKey(d);
             if (k !== lastDayKey) {
                 if (todayOffset < 0 && k >= todayKey)
@@ -204,12 +232,12 @@ PluginComponent {
                 if (lastWeekKey !== -1 && wk !== lastWeekKey) {
                     rows.push({
                         "kind": "week",
-                        "label": "Week of " + Qt.formatDate(monday, "d MMMM")
+                        "label": "Week of " + root.formatLocalDate(monday, "d MMMM")
                     });
                     height += 30;
                 }
                 lastWeekKey = wk;
-                var label = Qt.formatDate(d, "dddd d MMMM");
+                var label = root.formatLocalDate(d, "dddd d MMMM");
                 if (k === todayKey)
                     label = "Today · " + label;
                 else if (k === tomorrowKey)
@@ -248,8 +276,8 @@ PluginComponent {
     // "past" dims the row, "now" paints it green — both keyed off the same
     // countdownNow tick that drives the pill.
     function eventPhase(ev) {
-        var startMs = new Date(ev.start).getTime();
-        var endMs = ev.end ? new Date(ev.end).getTime() : startMs;
+        var startMs = root.eventDate(ev.start, ev.allDay).getTime();
+        var endMs = ev.end ? root.eventDate(ev.end, ev.allDay).getTime() : startMs;
         if (root.countdownNow >= endMs)
             return "past";
 
@@ -298,15 +326,15 @@ PluginComponent {
                     console.warn("[dankCalendarAgenda] agenda parse failed:", e);
                 }
                 events.sort((a, b) => {
-                    var dayA = root.dateKey(new Date(a.start));
-                    var dayB = root.dateKey(new Date(b.start));
+                    var dayA = root.dateKey(root.eventDate(a.start, a.allDay));
+                    var dayB = root.dateKey(root.eventDate(b.start, b.allDay));
                     if (dayA !== dayB)
                         return dayA - dayB;
 
                     if ((a.allDay === true) !== (b.allDay === true))
                         return a.allDay ? -1 : 1;
 
-                    return new Date(a.start) - new Date(b.start);
+                    return root.eventDate(a.start, a.allDay) - root.eventDate(b.start, b.allDay);
                 });
                 root.agendaEvents = events;
                 root.agendaModel = root.buildAgenda(events);
@@ -540,7 +568,7 @@ PluginComponent {
 
                     StyledText {
                         text: {
-                            var date = Qt.formatDate(new Date(), "dddd, d MMMM");
+                            var date = root.formatLocalDate(new Date(), "dddd, d MMMM");
                             if (root.upcomingCount === 0)
                                 return date;
 

@@ -1,34 +1,58 @@
 #!/usr/bin/env bash
+# Emits the next upcoming event as EVENT_SUMMARY= / EVENT_START= / EVENT_END= /
+# EVENT_ALL_DAY= lines for the countdown pill.
+#
+# dcal serialises all-day events as UTC midnight of the calendar date, so an
+# all-day event on 8 August arrives as "2026-08-08T00:00:00Z". Comparing that
+# raw against now would rank it as starting at 17:00 local (in PDT), stealing
+# the pill from timed events that are genuinely sooner. Selection therefore
+# runs on an "effective start" that shifts all-day events to LOCAL midnight;
+# the widget applies the same shift for display. (The offset is sampled now,
+# so an all-day event on the far side of a DST change inside the look-ahead
+# window can be off by an hour — harmless for a countdown.)
 set -eu
 
 DAYS="${1:-1}"
 NOW_WINDOW_MIN="${2:-5}"
-NOW=$(date -u +%Y-%m-%dT%H:%M:%SZ)
 NOW_EPOCH=$(date -u +%s)
 NOW_WINDOW_SEC=$((NOW_WINDOW_MIN * 60))
 FROM=$(date -u -d "-${NOW_WINDOW_MIN} minutes" +%Y-%m-%dT%H:%M:%SZ)
 TO=$(date -u -d "+${DAYS} days" +%Y-%m-%dT%H:%M:%SZ)
+# Seconds east of UTC (PDT => -25200). local_midnight = utc_midnight - offset.
+OFFSET_SEC=$(date +%z | awk '{ v = substr($0, 2, 2) * 3600 + substr($0, 4, 2) * 60; print (substr($0, 1, 1) == "-" ? -v : v) }')
 
-output=$(dcal ipc events.list from="${FROM}" to="${TO}" 2>/dev/null) || {
+emit_empty() {
     echo "EVENT_SUMMARY="
     echo "EVENT_START="
     echo "EVENT_END="
+    echo "EVENT_ALL_DAY=false"
+}
+
+output=$(dcal ipc events.list from="${FROM}" to="${TO}" 2>/dev/null) || {
+    emit_empty
     exit 0
 }
 
-IFS=$'\t' read -r summary start end < <(echo "$output" | jq -r --argjson now "$NOW_EPOCH" --argjson nw "$NOW_WINDOW_SEC" '
+IFS=$'\t' read -r summary start end allday < <(echo "$output" | jq -r \
+    --argjson now "$NOW_EPOCH" \
+    --argjson nw "$NOW_WINDOW_SEC" \
+    --argjson off "$OFFSET_SEC" '
+    def shift: if (.allDay == true) then $off else 0 end;
+    def eff: (.start | fromdateiso8601) - shift;
+    def effend: ((.end // .start) | fromdateiso8601) - shift;
     [.events[] | select(
-        (.start | fromdateiso8601) > $now or
+        eff > $now or
         ($nw > 0 and
-            ((.start | fromdateiso8601) as $s |
-             ((.end // .start) | fromdateiso8601) as $e |
+            (eff as $s |
+             effend as $e |
              ([$e - $s, $nw] | min) as $window |
              $now < ($s + $window))
         )
-    )] | sort_by(.start) | first // empty |
-    "\(.summary)\t\(.start)\t\(.end // "")"
-' 2>/dev/null) || { summary=""; start=""; end=""; }
+    )] | sort_by(eff) | first // empty |
+    "\(.summary)\t\(.start)\t\(.end // "")\t\(.allDay == true)"
+' 2>/dev/null) || { summary=""; start=""; end=""; allday="false"; }
 
 echo "EVENT_SUMMARY=${summary}"
 echo "EVENT_START=${start}"
 echo "EVENT_END=${end}"
+echo "EVENT_ALL_DAY=${allday:-false}"
