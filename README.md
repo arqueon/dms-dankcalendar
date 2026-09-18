@@ -20,7 +20,7 @@ events dimmed, and a floating **Today** chip to jump back when you scroll away.
 | Click an event in the popout | Opens that event's details in DankCalendar |
 | Join Meeting / Join button | Opens the event's meeting link with the default URL handler |
 | `+` in the popout header | Opens DankCalendar in day view to create an event |
-| Right click | Refreshes the countdown and the agenda |
+| Right click / sync button | Requests account sync and refreshes the countdown and agenda |
 | Middle click | Toggles the DankCalendar window |
 | Hover | Privacy-conscious event card with schedule, location, a short description and link availability |
 
@@ -37,6 +37,14 @@ in the bar (camera icon in vertical bars).
 The bar pill keeps everything from upstream dms-dcal: scrolling event name, dot
 separator, live countdown ("2h30m", "Now" while an event is starting), compact
 vertical-bar layout, and the hover tooltip.
+Event times in the agenda and tooltip follow DMS's 12/24-hour clock and
+12-hour zero-padding preferences.
+
+Manual refresh asks `dcal` to sync all accounts, reads the local cache immediately,
+and schedules another cache read after 1.5 seconds. If a read is still running,
+the follow-up is queued until it exits. Account sync is asynchronous: slower syncs
+appear on the regular refresh interval (30 seconds by default). Periodic refresh
+only reads the cache; it does not request extra provider syncs.
 
 <img src="assets/screenshot-bar.png" width="420" alt="Pill in a vertical bar with the agenda popout">
 
@@ -75,6 +83,7 @@ to a DankBar section.
 ```bash
 bash tests/test-next-event.sh
 node tests/test-widget-customizations.js
+node tests/test-refresh.js
 ```
 
 Node.js is only needed for the JavaScript regression tests, not to run the widget.

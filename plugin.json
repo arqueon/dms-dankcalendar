@@ -2,7 +2,7 @@
   "id": "dankCalendarAgenda",
   "name": "Dank Calendar Agenda",
   "description": "Next-event countdown for dcal: left click opens a scrollable agenda grouped by day (click an event to open it, + creates one), right click refreshes, middle click opens the calendar",
-  "version": "1.3.0",
+  "version": "1.4.0",
   "author": "arqueon",
   "icon": "calendar_today",
   "type": "widget",

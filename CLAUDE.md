@@ -14,8 +14,10 @@ next-event tooltip.
 
 ## Development
 
-No build step, tests, or linter. Pure QML + two bash helper scripts, loaded by the DMS
-plugin runtime. Test locally by symlinking the repo to
+No build step. Pure QML + two bash helper scripts, loaded by the DMS plugin runtime.
+Run `bash tests/test-next-event.sh`, `node tests/test-widget-customizations.js`,
+and `node tests/test-refresh.js`; validate scripts with `bash -n` and ShellCheck.
+Test locally by symlinking the repo to
 `~/.config/DankMaterialShell/plugins/dankCalendarAgenda/` (the directory name matters — script
 paths are resolved as `PluginService.pluginDirectory + "/dankCalendarAgenda/..."`), then
 `dms ipc plugin-scan reload dankCalendarAgenda` or restart the shell.
@@ -26,7 +28,7 @@ Runtime dependencies: `dcal` (calendar daemon with IPC) and `jq`.
 
 - **`plugin.json`** — DMS plugin manifest.
 - **`DankCalendarWidget.qml`** — Main widget. Fetches the next event via `get-next-event`
-  (key=value lines, SplitParser) and the agenda via `get-agenda-events` (raw JSON,
+  (compact JSON, StdioCollector) and the agenda via `get-agenda-events` (raw JSON,
   StdioCollector) on the same refresh timer. Renders the countdown pill (horizontal and
   vertical), the hover tooltip (layer-shell PanelWindow, empty input region), and the
   popout: a dankmail-style custom header plus a flat display model built by
@@ -35,8 +37,8 @@ Runtime dependencies: `dcal` (calendar daemon with IPC) and `jq`.
   the list to today on open) is known before DankPopout positions the surface. Rows dim
   when past and go green while happening.
 - **`DankCalendarSettings.qml`** — `PluginSettings` form writing to `pluginData`.
-- **`get-next-event`** — Upstream script: next upcoming event within the look-ahead
-  window, emits `EVENT_SUMMARY=` / `EVENT_START=` / `EVENT_END=` lines.
+- **`get-next-event`** — Next upcoming event within the look-ahead window, emitted
+  as compact JSON including meeting links and tooltip details.
 - **`get-agenda-events PAST FUTURE`** — Emits `dcal ipc events.list` JSON for local
   midnight−PAST days → local midnight+FUTURE days. Local→UTC conversion goes through an
   epoch because `date -u -d` parses its input as UTC; the widget sorts (by day, all-day

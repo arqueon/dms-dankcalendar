@@ -252,16 +252,32 @@ PluginComponent {
     }
 
     function refreshAll() {
+        Quickshell.execDetached(["dcal", "ipc", "accounts.refresh"]);
+        reloadEvents();
+        postSyncTimer.restart();
+    }
+
+    function reloadEvents() {
         root.isLoading = true;
         root.agendaLoading = true;
-        Quickshell.execDetached(["dcal", "ipc", "accounts.refresh"]);
-        if (!fetchProcess.running)
-            fetchProcess.running = true;
+        queueFetch(fetchProcess);
+        queueFetch(agendaProcess);
+    }
 
-        if (!agendaProcess.running)
-            agendaProcess.running = true;
+    function queueFetch(process) {
+        if (process.running)
+            process.reloadPending = true;
+        else
+            process.running = true;
+    }
 
-        postSyncTimer.restart();
+    function finishFetch(process) {
+        if (!process.reloadPending)
+            return false;
+
+        process.reloadPending = false;
+        Qt.callLater(() => root.queueFetch(process));
+        return true;
     }
 
     function dateKey(d) {
@@ -385,11 +401,12 @@ PluginComponent {
     Process {
         id: fetchProcess
 
+        property bool reloadPending: false
         command: ["bash", root.scriptPath, String(root.lookAheadDays), String(root.nowWindowMinutes)]
         running: false
         onExited: (exitCode, exitStatus) => {
             console.log("[dankCalendarAgenda] script exited:", exitCode, "summary:", root.eventSummary, "start:", root.eventStart);
-            root.isLoading = false;
+            root.isLoading = root.finishFetch(fetchProcess);
         }
 
         stdout: StdioCollector {
@@ -414,10 +431,11 @@ PluginComponent {
     Process {
         id: agendaProcess
 
+        property bool reloadPending: false
         command: ["bash", root.agendaScriptPath, String(root.agendaPastDays), String(root.agendaFutureDays)]
         running: false
         onExited: (exitCode, exitStatus) => {
-            root.agendaLoading = false;
+            root.agendaLoading = root.finishFetch(agendaProcess);
         }
 
         stdout: StdioCollector {
@@ -469,19 +487,11 @@ PluginComponent {
 
     Timer {
         id: postSyncTimer
+        // accounts.refresh acknowledges scheduling, not completion. Polling
+        // continues to pick up syncs that outlast this early cache reload.
         interval: 1500
         repeat: false
-        onTriggered: {
-            if (!fetchProcess.running) {
-                root.isLoading = true;
-                fetchProcess.running = true;
-            }
-
-            if (!agendaProcess.running) {
-                root.agendaLoading = true;
-                agendaProcess.running = true;
-            }
-        }
+        onTriggered: root.reloadEvents()
     }
 
     Timer {
