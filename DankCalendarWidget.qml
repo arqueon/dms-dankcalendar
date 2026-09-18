@@ -63,6 +63,26 @@ PluginComponent {
     property int agendaContentHeight: 0
     property int agendaTodayOffset: 0
     property bool agendaLoading: true
+    // Prefer a timed event in progress; otherwise the next timed event.
+    // All-day entries should not hide the next actual appointment.
+    readonly property var highlightedEvent: selectHighlightedEvent(agendaEvents, countdownNow)
+
+    function selectHighlightedEvent(events, now) {
+        var active = null, next = null;
+        for (var ev of events) {
+            if (ev.allDay || ev.status === "cancelled")
+                continue;
+            var start = new Date(ev.start).getTime();
+            var end = new Date(ev.end || ev.start).getTime();
+            if (start <= now && now < end) {
+                if (!active || start < new Date(active.start).getTime())
+                    active = ev;
+            } else if (start > now && (!next || start < new Date(next.start).getTime())) {
+                next = ev;
+            }
+        }
+        return active || next;
+    }
     readonly property int upcomingCount: {
         var n = 0;
         for (var i = 0; i < agendaEvents.length; i++) {
@@ -78,6 +98,64 @@ PluginComponent {
     // right click re-fetches both the countdown and today's list; middle
     // click (MouseArea in each pill) toggles the DankCalendar window.
     pillRightClickAction: () => root.refreshAll()
+
+    // Use conference links only, never the calendar event's detail-page URL.
+    function meetingLink(value) {
+        var link = String(value || "").trim();
+        return /^https?:\/\/[^\s/]+(?:[/?#][^\s]*)?$/i.test(link) ? link : "";
+    }
+
+    function joinMeeting(link) {
+        var url = meetingLink(link);
+        if (url) {
+            hideEventTooltip();
+            Qt.openUrlExternally(url);
+        }
+    }
+
+    component JoinButton: Rectangle {
+        property bool compact: false
+        property bool iconOnly: false
+        signal clicked()
+        implicitWidth: joinContent.implicitWidth + (compact ? 10 : 16)
+        implicitHeight: compact ? 22 : 30
+        radius: implicitHeight / 2
+        color: joinMouse.containsMouse ? Theme.withAlpha(Theme.primary, 0.3) : Theme.withAlpha(Theme.primary, 0.16)
+        border.width: 1
+        border.color: Theme.withAlpha(Theme.primary, 0.4)
+        Accessible.role: Accessible.Button
+        Accessible.name: "Join Meeting"
+        Accessible.onPressAction: clicked()
+
+        Row {
+            id: joinContent
+            anchors.centerIn: parent
+            spacing: Theme.spacingXS
+            DankIcon {
+                name: "videocam"
+                size: 16
+                color: Theme.primary
+                anchors.verticalCenter: parent.verticalCenter
+            }
+            StyledText {
+                visible: !iconOnly
+                text: compact ? "Join" : "Join Meeting"
+                textFormat: Text.PlainText
+                font.pixelSize: Theme.fontSizeSmall
+                font.weight: Font.Medium
+                color: Theme.primary
+                anchors.verticalCenter: parent.verticalCenter
+            }
+        }
+        MouseArea {
+            id: joinMouse
+            anchors.fill: parent
+            hoverEnabled: true
+            acceptedButtons: Qt.LeftButton
+            cursorShape: Qt.PointingHandCursor
+            onClicked: parent.clicked()
+        }
+    }
 
     function formatTimeRemaining() {
         if (!hasEvent)
@@ -808,6 +886,8 @@ PluginComponent {
 
                                 required property var modelData
                                 readonly property string phase: modelData.kind === "event" ? root.eventPhase(modelData.ev) : ""
+                                readonly property string meetingUrl: modelData.kind === "event" ? root.meetingLink(modelData.ev.meetingUrl) : ""
+                                readonly property bool highlighted: modelData.kind === "event" && root.highlightedEvent !== null && modelData.ev.uid === root.highlightedEvent.uid && modelData.ev.start === root.highlightedEvent.start
 
                                 width: eventColumn.width
                                 height: modelData.kind === "event" ? 52 : (modelData.kind === "day" ? 32 : 28)
@@ -871,7 +951,9 @@ PluginComponent {
                                     visible: agendaRow.modelData.kind === "event"
                                     anchors.fill: parent
                                     radius: Theme.cornerRadiusSmall
-                                    color: rowHover.hovered ? Theme.surfaceContainerHigh : "transparent"
+                                    color: agendaRow.highlighted ? Theme.withAlpha(Theme.primary, rowHover.hovered ? 0.24 : 0.14) : (rowHover.hovered ? Theme.surfaceContainerHigh : "transparent")
+                                    border.width: agendaRow.highlighted ? 1 : 0
+                                    border.color: Theme.withAlpha(Theme.primary, 0.4)
 
                                     HoverHandler {
                                         id: rowHover
@@ -898,7 +980,7 @@ PluginComponent {
                                         }
 
                                         Column {
-                                            width: parent.width - 4 - Theme.spacingS * 2
+                                            width: Math.max(0, parent.width - 4 - Theme.spacingS * 2 - (agendaJoin.visible ? agendaJoin.width + Theme.spacingS : 0))
                                             spacing: 1
                                             anchors.verticalCenter: parent.verticalCenter
 
@@ -919,7 +1001,7 @@ PluginComponent {
                                                         return "";
 
                                                     var ev = agendaRow.modelData.ev;
-                                                    return root.eventTimeLabel(ev) + (agendaRow.phase === "now" ? "  ·  Now" : "") + (ev.location ? "  ·  " + ev.location : "");
+                                                    return root.eventTimeLabel(ev) + (agendaRow.phase === "now" ? "  ·  Now" : (agendaRow.highlighted ? "  ·  Next" : "")) + (ev.location ? "  ·  " + ev.location : "");
                                                 }
                                                 font.pixelSize: Theme.fontSizeSmall
                                                 color: agendaRow.phase === "now" ? "#66BB6A" : Theme.surfaceVariantText
@@ -931,12 +1013,29 @@ PluginComponent {
 
                                     }
 
-                                    TapHandler {
-                                        onTapped: {
+                                    MouseArea {
+                                        anchors.left: parent.left
+                                        anchors.top: parent.top
+                                        anchors.bottom: parent.bottom
+                                        width: parent.width - (agendaJoin.visible ? agendaJoin.width + Theme.spacingS * 2 : 0)
+                                        onClicked: {
                                             root.openEvent(agendaRow.modelData.ev);
                                             if (popout.closePopout)
                                                 popout.closePopout();
 
+                                        }
+                                    }
+
+                                    JoinButton {
+                                        id: agendaJoin
+                                        visible: agendaRow.meetingUrl !== ""
+                                        anchors.right: parent.right
+                                        anchors.rightMargin: Theme.spacingS
+                                        anchors.verticalCenter: parent.verticalCenter
+                                        onClicked: {
+                                            root.joinMeeting(agendaRow.meetingUrl);
+                                            if (popout.closePopout)
+                                                popout.closePopout();
                                         }
                                     }
 
@@ -1108,6 +1207,13 @@ PluginComponent {
                     visible: root.hasEvent
                 }
 
+                JoinButton {
+                    compact: true
+                    visible: root.hasEvent && root.meetingLink(root.eventMeetingUrl) !== ""
+                    anchors.verticalCenter: parent.verticalCenter
+                    onClicked: root.joinMeeting(root.eventMeetingUrl)
+                }
+
             }
 
             // Hover shows the full event in the same tooltip (handy when the
@@ -1168,6 +1274,14 @@ PluginComponent {
                     elide: Text.ElideRight
                     anchors.horizontalCenter: parent.horizontalCenter
                     visible: root.hasEvent
+                }
+
+                JoinButton {
+                    compact: true
+                    iconOnly: true
+                    visible: root.hasEvent && root.meetingLink(root.eventMeetingUrl) !== ""
+                    anchors.horizontalCenter: parent.horizontalCenter
+                    onClicked: root.joinMeeting(root.eventMeetingUrl)
                 }
 
             }

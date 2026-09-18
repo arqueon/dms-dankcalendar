@@ -18,6 +18,7 @@ events dimmed, and a floating **Today** chip to jump back when you scroll away.
 |---|---|
 | Left click | Agenda popout, opened at today |
 | Click an event in the popout | Opens that event's details in DankCalendar |
+| Join Meeting / Join button | Opens the event's meeting link with the default URL handler |
 | `+` in the popout header | Opens DankCalendar in day view to create an event |
 | Right click | Refreshes the countdown and the agenda |
 | Middle click | Toggles the DankCalendar window |
@@ -26,6 +27,12 @@ events dimmed, and a floating **Today** chip to jump back when you scroll away.
 The agenda covers a configurable window (default 7 days back, 30 ahead), grouped by
 day with shaded headers — today tinted, happening-now events in green, past events
 dimmed — and a divider each time the week changes. It always opens scrolled to today.
+
+The current timed event is highlighted with **Now**, or the next timed event with
+**Next** when nothing is in progress. All-day and cancelled events do not take this
+highlight; overlapping active events prefer the earliest start. Meeting buttons
+appear only when an event has an HTTP(S) meeting link, including a compact button
+in the bar (camera icon in vertical bars).
 
 The bar pill keeps everything from upstream dms-dcal: scrolling event name, dot
 separator, live countdown ("2h30m", "Now" while an event is starting), compact
@@ -62,6 +69,15 @@ to a DankBar section.
 - **Agenda: Days Back** — past days kept scrollable in the popout (0–90, default 7)
 - **Agenda: Days Ahead** — upcoming days the popout covers (7–90, default 30)
 - **Look Ahead** — how many days ahead the countdown searches
+
+## Tests
+
+```bash
+bash tests/test-next-event.sh
+node tests/test-widget-customizations.js
+```
+
+Node.js is only needed for the JavaScript regression tests, not to run the widget.
 
 ## License
 
