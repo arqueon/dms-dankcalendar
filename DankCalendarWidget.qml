@@ -149,9 +149,9 @@ PluginComponent {
         if (eventAllDay)
             return day + " · All day";
 
-        var schedule = day + " · " + Qt.formatTime(start, "HH:mm");
+        var schedule = day + " · " + root.formatTime(start);
         if (eventEnd)
-            schedule += "–" + Qt.formatTime(eventDate(eventEnd, false), "HH:mm");
+            schedule += "–" + root.formatTime(eventDate(eventEnd, false));
 
         return schedule;
     }
@@ -270,13 +270,23 @@ PluginComponent {
         return rows;
     }
 
+    function formatTime(time) {
+        if (SettingsData.use24HourClock) {
+            return Qt.formatTime(time, "HH:mm");
+        } else if (SettingsData.padHours12Hour) {
+            return Qt.formatTime(time, "hh:mm AP");
+        } else {
+            return Qt.formatTime(time, "h:mm AP");
+        }
+    }
+
     function eventTimeLabel(ev) {
         if (ev.allDay)
             return "All day";
 
-        var label = Qt.formatTime(new Date(ev.start), "HH:mm");
+        var label = root.formatTime(new Date(ev.start));
         if (ev.end)
-            label += "–" + Qt.formatTime(new Date(ev.end), "HH:mm");
+            label += "–" + root.formatTime(new Date(ev.end));
 
         return label;
     }
