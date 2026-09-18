@@ -15,8 +15,9 @@ next-event tooltip.
 ## Development
 
 No build step. Pure QML + two bash helper scripts, loaded by the DMS plugin runtime.
-Run `bash tests/test-next-event.sh`, `node tests/test-widget-customizations.js`,
-and `node tests/test-refresh.js`; validate scripts with `bash -n` and ShellCheck.
+Run `bash tests/run-all.sh` for shell, Node and optional Qt 6 helper tests.
+Use the Qt 6 binaries for QML checks (on Arch: `/usr/lib/qt6/bin/`), since
+unversioned tool names may point to Qt 5.
 Test locally by symlinking the repo to
 `~/.config/DankMaterialShell/plugins/dankCalendarAgenda/` (the directory name matters — script
 paths are resolved as `PluginService.pluginDirectory + "/dankCalendarAgenda/..."`), then
@@ -37,6 +38,9 @@ Runtime dependencies: `dcal` (calendar daemon with IPC) and `jq`.
   the list to today on open) is known before DankPopout positions the surface. Rows dim
   when past and go green while happening.
 - **`DankCalendarSettings.qml`** — `PluginSettings` form writing to `pluginData`.
+- **`calendarUtils.js`** — Pure layout, selection, scroll and clipboard-text helpers.
+- **`AgendaController.qml` / `qmldir`** — One shared IPC handler; live widget roots
+  register/unregister and commands route to one instance on the focused monitor.
 - **`get-next-event`** — Next upcoming event within the look-ahead window, emitted
   as compact JSON including meeting links and tooltip details.
 - **`get-agenda-events PAST FUTURE`** — Emits `dcal ipc events.list` JSON for local

@@ -18,6 +18,7 @@ events dimmed, and a floating **Today** chip to jump back when you scroll away.
 |---|---|
 | Left click | Agenda popout, opened at today |
 | Click an event in the popout | Opens that event's details in DankCalendar |
+| Copy button / `c` in the agenda | Copies the selected event's title, local date, schedule and location |
 | Join Meeting / Join button | Opens the event's meeting link with the default URL handler |
 | `+` in the popout header | Opens DankCalendar in day view to create an event |
 | Right click / sync button | Requests account sync and refreshes the countdown and agenda |
@@ -39,6 +40,15 @@ separator, live countdown ("2h30m", "Now" while an event is starting), compact
 vertical-bar layout, and the hover tooltip.
 Event times in the agenda and tooltip follow DMS's 12/24-hour clock and
 12-hour zero-padding preferences.
+
+The bar offers **Title and countdown**, **Countdown only**, and **Title only**
+modes. Long horizontal titles can either scroll or truncate with an ellipsis;
+vertical titles stay on one line. Meeting controls remain available in every mode.
+
+With **Dynamic Width** off, the horizontal content width stays stable as the
+countdown changes or the meeting button appears. Its budget includes the calendar
+icon, title, countdown, separators and Join; DMS adds its own outer padding. Very
+small budgets expand to fit the controls at the current font size.
 
 Manual refresh asks `dcal` to sync all accounts, reads the local cache immediately,
 and schedules another cache read after 1.5 seconds. If a read is still running,
@@ -67,26 +77,81 @@ to a DankBar section.
 > The install directory must be named `dankCalendarAgenda` — the widget resolves its helper
 > scripts through that path.
 
+## Keyboard navigation
+
+Open the agenda to use these keys:
+
+| Key | Action |
+|---|---|
+| `↑` / `k`, `↓` / `j` | Select the previous/next event, skipping day and week headers |
+| `Enter` | Open the selected event's details |
+| `t` / `Home` | Return to today |
+| `c` | Copy the selected event |
+| `Ctrl+R` | Request account sync and refresh the agenda |
+| `Esc` | Close the agenda |
+
+The selected row has a focus outline and scrolls into view. Its event identity is
+preserved across refreshes, including recurring occurrences. Copy and Join have
+their own click targets, separate from opening event details.
+
+## IPC and Niri shortcuts
+
+The plugin exposes one IPC target shared by its bar instances:
+
+```bash
+dms ipc dankCalendarAgenda open
+dms ipc dankCalendarAgenda close
+dms ipc dankCalendarAgenda toggle
+dms ipc dankCalendarAgenda refresh
+dms ipc dankCalendarAgenda status
+```
+
+Opening and closing are idempotent. Commands route to an instance on the focused
+monitor, with a fallback to an available instance; one refresh command requests
+one account sync. The widget must be enabled and present in a DankBar.
+The examples disable key repeat, and holding `Ctrl+R` inside the agenda only
+refreshes once. A surface that fails to open can be retried after 1.5 seconds.
+
+Example Niri bindings (choose keys that are free in your configuration):
+
+```kdl
+binds {
+    Mod+Alt+C repeat=false { spawn "dms" "ipc" "dankCalendarAgenda" "toggle"; }
+    Mod+Alt+R repeat=false { spawn "dms" "ipc" "dankCalendarAgenda" "refresh"; }
+}
+```
+
 ## Settings
 
 - **Refresh Interval** — how often to re-fetch events (seconds)
-- **Dynamic Width** — shrink the pill to fit the event name
+- **Dynamic Width** — shrink the horizontal pill to its contents
+- **Bar Display** — title and countdown, countdown only, or title only
+- **Scroll Long Titles** — animate overflowing horizontal titles or truncate them
 - **Hover Tooltip** — toggle the next-event hover tooltip
-- **Event Name Width** — max pill width for the event name
+- **Bar Content Width** — horizontal content budget, including the controls (120–600 px)
 - **Now Duration** — how long to show "Now" after an event starts
 - **Agenda: Days Back** — past days kept scrollable in the popout (0–90, default 7)
 - **Agenda: Days Ahead** — upcoming days the popout covers (7–90, default 30)
 - **Look Ahead** — how many days ahead the countdown searches
 
+### Width setting upgrade from 1.4
+
+`barContentWidth` replaces the title-only `pillMaxWidth` setting. Until a new width
+is saved, the plugin derives its budget as the old title width plus 100 px, clamped
+to 120–600 px (260 px for the old default). The old value remains available as a
+fallback; it is not silently reinterpreted as a total width.
+
 ## Tests
 
 ```bash
-bash tests/test-next-event.sh
-node tests/test-widget-customizations.js
-node tests/test-refresh.js
+bash tests/run-all.sh
 ```
 
 Node.js is only needed for the JavaScript regression tests, not to run the widget.
+The suites execute the shipped QML/JS logic with simulated processes and calendars.
+If Qt 6's `qmltestrunner` is installed, the helper library also runs in the actual
+QML engine; otherwise that part reports a skip. Live DMS is needed to verify the
+complete rendered widget, desktop focus and pointer interactions.
 
 ## License
 
@@ -97,4 +162,7 @@ GPL-3.0-or-later. The upstream code this plugin forks from is MIT ©
 
 - Original plugin by [Leonardo Amaro](https://github.com/leoamaro01) (MIT).
 - Popout/click pattern from [dms-dankmail](https://github.com/arqueon/dms-dankmail).
+- Bar modes, title-width budgeting, keyboard navigation and copy/IPC ideas adapted
+  from [luckjokerwang's Dank Calendar Plus](https://github.com/luckjokerwang/dms-dankcalendar)
+  (GPL-3.0-or-later).
 - The screenshot shows fictitious demo events.

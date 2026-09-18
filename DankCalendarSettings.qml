@@ -2,6 +2,7 @@ import QtQuick
 import qs.Common
 import qs.Widgets
 import qs.Modules.Plugins
+import "calendarUtils.js" as CalendarUtils
 
 PluginSettings {
     id: root
@@ -37,8 +38,27 @@ PluginSettings {
     ToggleSetting {
         settingKey: "dynamicWidth"
         label: "Dynamic Width"
-        description: "Shrink the widget to fit the event name instead of using a fixed width"
+        description: "Shrink the horizontal pill to its contents instead of reserving the full width"
         defaultValue: false
+    }
+
+    SelectionSetting {
+        settingKey: "pillDisplayMode"
+        label: "Bar Display"
+        description: "Choose which event details appear beside the calendar icon"
+        options: [
+            { label: "Title and countdown", value: "full" },
+            { label: "Countdown only", value: "countdownOnly" },
+            { label: "Title only", value: "titleOnly" }
+        ]
+        defaultValue: "full"
+    }
+
+    ToggleSetting {
+        settingKey: "scrollTitle"
+        label: "Scroll Long Titles"
+        description: "Animate overflowing horizontal titles; otherwise truncate them on one line"
+        defaultValue: true
     }
 
     ToggleSetting {
@@ -49,12 +69,12 @@ PluginSettings {
     }
 
     SliderSetting {
-        settingKey: "pillMaxWidth"
-        label: "Event Name Width"
-        description: "Maximum width for the event name in the bar (pixels)"
-        defaultValue: 160
-        minimum: 80
-        maximum: 300
+        settingKey: "barContentWidth"
+        label: "Bar Content Width"
+        description: "Horizontal content budget including icon, title, countdown and Join (DMS adds outer padding)"
+        defaultValue: CalendarUtils.contentWidth({pillMaxWidth: root.loadValue("pillMaxWidth", 160)})
+        minimum: 120
+        maximum: 600
         unit: "px"
         leftIcon: "width"
     }

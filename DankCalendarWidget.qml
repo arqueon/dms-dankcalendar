@@ -6,6 +6,8 @@ import qs.Common
 import qs.Modules.Plugins
 import qs.Services
 import qs.Widgets
+import "calendarUtils.js" as CalendarUtils
+import "." as Local
 
 // Next-event countdown for dcal / DankCalendar, click model borrowed from
 // dms-dankmail: left click opens a popout with today's events (click one to
@@ -25,7 +27,9 @@ PluginComponent {
     property string eventUrl: ""
     property bool isLoading: true
     property int refreshInterval: (pluginData.refreshInterval || 30) * 1000
-    property int pillMaxWidth: pluginData.pillMaxWidth || 160
+    property int barContentWidth: CalendarUtils.contentWidth(pluginData)
+    property string pillDisplayMode: CalendarUtils.displayMode(pluginData.pillDisplayMode)
+    property bool scrollTitle: pluginData.scrollTitle ?? true
     property bool dynamicWidth: pluginData.dynamicWidth ?? false
     property int lookAheadDays: pluginData.lookAheadDays || 1
     property int nowWindowMinutes: pluginData.nowWindowMinutes ?? 5
@@ -63,9 +67,17 @@ PluginComponent {
     property int agendaContentHeight: 0
     property int agendaTodayOffset: 0
     property bool agendaLoading: true
+    property int selectedAgendaIndex: -1
+    property string selectedEventKey: ""
+    property var agendaPopout: null
+    property bool agendaOpenRequested: false
+    property real agendaOpenRequestedAt: 0
     // Prefer a timed event in progress; otherwise the next timed event.
     // All-day entries should not hide the next actual appointment.
     readonly property var highlightedEvent: selectHighlightedEvent(agendaEvents, countdownNow)
+
+    Component.onCompleted: Local.AgendaController.registerRoot(root)
+    Component.onDestruction: Local.AgendaController.unregisterRoot(root)
 
     function selectHighlightedEvent(events, now) {
         var active = null, next = null;
@@ -242,6 +254,98 @@ PluginComponent {
         // events.list gives the occurrence start, which ui.openEvent needs
         // to resolve recurring events; for one-offs it matches and is inert.
         Quickshell.execDetached(["dcal", "ipc", "ui.openEvent", "uid=" + ev.uid, "start=" + ev.start]);
+    }
+
+    function selectedAgendaEvent() {
+        if (selectedAgendaIndex < 0 || selectedAgendaIndex >= agendaModel.length)
+            return null;
+
+        var row = agendaModel[selectedAgendaIndex];
+        return row.kind === "event" ? row.ev : null;
+    }
+
+    function syncAgendaSelection(preferredKey) {
+        selectedAgendaIndex = CalendarUtils.selectionIndex(agendaModel, selectedEventKey, preferredKey || CalendarUtils.eventKey(highlightedEvent), agendaTodayOffset);
+        var selected = selectedAgendaEvent();
+        selectedEventKey = CalendarUtils.eventKey(selected);
+    }
+
+    function selectAgendaIndex(index) {
+        if (index < 0 || index >= agendaModel.length || agendaModel[index].kind !== "event")
+            return;
+
+        selectedAgendaIndex = index;
+        selectedEventKey = CalendarUtils.eventKey(agendaModel[index].ev);
+    }
+
+    function moveAgendaSelection(direction) {
+        var next = CalendarUtils.stepSelection(agendaModel, selectedAgendaIndex, direction);
+        if (next >= 0)
+            selectAgendaIndex(next);
+    }
+
+    function selectAgendaToday() {
+        selectedAgendaIndex = CalendarUtils.selectionIndex(agendaModel, "", "", agendaTodayOffset);
+        selectedEventKey = CalendarUtils.eventKey(selectedAgendaEvent());
+    }
+
+    function copyEvent(ev) {
+        if (!ev)
+            return;
+
+        var start = eventDate(ev.start, ev.allDay);
+        var date = formatLocalDate(start, "dddd d MMMM yyyy");
+        var time = ev.allDay ? "All day" : eventTimeLabel(ev);
+        Quickshell.execDetached(["dms", "cl", "copy", "--", CalendarUtils.eventCopyText(ev, date, time)]);
+    }
+
+    function openSelectedAgendaEvent() {
+        var ev = selectedAgendaEvent();
+        if (!ev)
+            return;
+
+        openEvent(ev);
+        if (agendaPopout?.close)
+            agendaPopout.close();
+    }
+
+    function agendaIsOpen() {
+        // A failed/deferred surface creation must not latch IPC open forever.
+        if (agendaOpenRequested && Date.now() - agendaOpenRequestedAt >= 1500)
+            agendaOpenRequested = false;
+        return agendaOpenRequested || !!agendaPopout?.shouldBeVisible;
+    }
+
+    function openAgendaFromIpc() {
+        if (agendaIsOpen())
+            return "AGENDA_ALREADY_OPEN";
+
+        agendaOpenRequested = true;
+        agendaOpenRequestedAt = Date.now();
+        triggerPopout();
+        return "AGENDA_OPENING";
+    }
+
+    function closeAgendaFromIpc() {
+        if (!agendaIsOpen())
+            return "AGENDA_ALREADY_CLOSED";
+
+        agendaOpenRequested = false;
+        closePopout();
+        return "AGENDA_CLOSED";
+    }
+
+    function toggleAgendaFromIpc() {
+        return agendaIsOpen() ? closeAgendaFromIpc() : openAgendaFromIpc();
+    }
+
+    function refreshAgendaFromIpc() {
+        refreshAll();
+        return "AGENDA_REFRESH_QUEUED";
+    }
+
+    function agendaStatusFromIpc() {
+        return agendaIsOpen() ? "AGENDA_OPEN" : "AGENDA_CLOSED";
     }
 
     function newEvent() {
@@ -459,6 +563,7 @@ PluginComponent {
                 });
                 root.agendaEvents = events;
                 root.agendaModel = root.buildAgenda(events);
+                root.syncAgendaSelection(CalendarUtils.eventKey(root.highlightedEvent));
             }
         }
 
@@ -737,6 +842,48 @@ PluginComponent {
         PopoutComponent {
             id: popout
 
+            focus: true
+
+            function focusAgenda() {
+                forceActiveFocus();
+            }
+
+            onParentPopoutChanged: {
+                if (parentPopout)
+                    root.agendaPopout = parentPopout;
+            }
+
+            Keys.onPressed: event => {
+                var control = event.modifiers & Qt.ControlModifier;
+                if (event.modifiers && !control)
+                    return;
+                if (control && event.key !== Qt.Key_R && event.key !== Qt.Key_C)
+                    return;
+
+                if (!control && (event.key === Qt.Key_Down || event.key === Qt.Key_J)) {
+                    root.moveAgendaSelection(1);
+                } else if (!control && (event.key === Qt.Key_Up || event.key === Qt.Key_K)) {
+                    root.moveAgendaSelection(-1);
+                } else if (!control && (event.key === Qt.Key_Return || event.key === Qt.Key_Enter)) {
+                    root.openSelectedAgendaEvent();
+                } else if (!control && (event.key === Qt.Key_T || event.key === Qt.Key_Home)) {
+                    root.selectAgendaToday();
+                    agendaFlick.resetToToday();
+                    agendaFlick.scrollSelectedIntoView();
+                } else if (event.key === Qt.Key_R && control) {
+                    if (!event.isAutoRepeat)
+                        root.refreshAll();
+                } else if (event.key === Qt.Key_C) {
+                    root.copyEvent(root.selectedAgendaEvent());
+                } else if (!control && event.key === Qt.Key_Escape) {
+                    if (popout.closePopout)
+                        popout.closePopout();
+                } else {
+                    return;
+                }
+                event.accepted = true;
+            }
+
             // Custom header (the built-in one hides with empty headerText):
             // the title itself opens DankCalendar, dankmail-style.
             Item {
@@ -808,6 +955,12 @@ PluginComponent {
                     }
 
                     DankActionButton {
+                        iconName: "content_copy"
+                        visible: root.selectedAgendaEvent() !== null
+                        onClicked: root.copyEvent(root.selectedAgendaEvent())
+                    }
+
+                    DankActionButton {
                         iconName: "close"
                         onClicked: {
                             if (popout.closePopout)
@@ -861,8 +1014,17 @@ PluginComponent {
                         Qt.callLater(() => agendaFlick.pinToToday());
                     }
 
+                    function scrollSelectedIntoView() {
+                        if (root.selectedAgendaIndex < 0)
+                            return;
+
+                        var rowY = CalendarUtils.rowOffset(root.agendaModel, root.selectedAgendaIndex);
+                        contentY = CalendarUtils.visibleScroll(rowY, 52, contentY, height, contentHeight);
+                    }
+
                     onMovementStarted: userScrolled = true
                     onTodayYChanged: pinToToday()
+                    onHeightChanged: scrollSelectedIntoView()
                     Component.onCompleted: resetToToday()
 
                     NumberAnimation {
@@ -898,6 +1060,7 @@ PluginComponent {
                                 readonly property string phase: modelData.kind === "event" ? root.eventPhase(modelData.ev) : ""
                                 readonly property string meetingUrl: modelData.kind === "event" ? root.meetingLink(modelData.ev.meetingUrl) : ""
                                 readonly property bool highlighted: modelData.kind === "event" && root.highlightedEvent !== null && modelData.ev.uid === root.highlightedEvent.uid && modelData.ev.start === root.highlightedEvent.start
+                                readonly property bool selected: modelData.kind === "event" && CalendarUtils.eventKey(modelData.ev) === root.selectedEventKey
 
                                 width: eventColumn.width
                                 height: modelData.kind === "event" ? 52 : (modelData.kind === "day" ? 32 : 28)
@@ -961,9 +1124,9 @@ PluginComponent {
                                     visible: agendaRow.modelData.kind === "event"
                                     anchors.fill: parent
                                     radius: Theme.cornerRadiusSmall
-                                    color: agendaRow.highlighted ? Theme.withAlpha(Theme.primary, rowHover.hovered ? 0.24 : 0.14) : (rowHover.hovered ? Theme.surfaceContainerHigh : "transparent")
-                                    border.width: agendaRow.highlighted ? 1 : 0
-                                    border.color: Theme.withAlpha(Theme.primary, 0.4)
+                                    color: agendaRow.selected ? Theme.withAlpha(Theme.primary, rowHover.hovered ? 0.30 : 0.22) : (agendaRow.highlighted ? Theme.withAlpha(Theme.primary, rowHover.hovered ? 0.24 : 0.14) : (rowHover.hovered ? Theme.surfaceContainerHigh : "transparent"))
+                                    border.width: agendaRow.selected ? 2 : (agendaRow.highlighted ? 1 : 0)
+                                    border.color: Theme.withAlpha(Theme.primary, agendaRow.selected ? 0.8 : 0.4)
 
                                     HoverHandler {
                                         id: rowHover
@@ -1029,10 +1192,8 @@ PluginComponent {
                                         anchors.bottom: parent.bottom
                                         width: parent.width - (agendaJoin.visible ? agendaJoin.width + Theme.spacingS * 2 : 0)
                                         onClicked: {
-                                            root.openEvent(agendaRow.modelData.ev);
-                                            if (popout.closePopout)
-                                                popout.closePopout();
-
+                                            root.selectAgendaIndex(index);
+                                            root.openSelectedAgendaEvent();
                                         }
                                     }
 
@@ -1063,7 +1224,22 @@ PluginComponent {
                     target: popout.parentPopout
 
                     function onOpened() {
+                        root.agendaOpenRequested = false;
                         agendaFlick.resetToToday();
+                        root.selectedEventKey = "";
+                        root.syncAgendaSelection(CalendarUtils.eventKey(root.highlightedEvent));
+                        Qt.callLater(() => {
+                            popout.focusAgenda();
+                            agendaFlick.scrollSelectedIntoView();
+                        });
+                    }
+                }
+
+                Connections {
+                    target: root
+
+                    function onSelectedAgendaIndexChanged() {
+                        Qt.callLater(() => agendaFlick.scrollSelectedIntoView());
                     }
                 }
 
@@ -1126,8 +1302,20 @@ PluginComponent {
         Item {
             id: hPill
 
-            implicitWidth: hRow.implicitWidth
+            readonly property bool showTitle: !root.hasEvent || root.pillDisplayMode !== "countdownOnly"
+            readonly property bool showTime: root.hasEvent && root.pillDisplayMode !== "titleOnly"
+            readonly property bool showDot: showTime && showTitle
+            readonly property real controlsWidth: root.iconSize + (showTime ? hTime.implicitWidth + hRow.spacing : 0) + (showDot ? hDot.implicitWidth + hRow.spacing : 0) + (hJoin.visible ? hJoin.implicitWidth + hRow.spacing : 0)
+            readonly property real minimumBudget: root.iconSize + hJoin.implicitWidth + hRow.spacing * 4 + (root.pillDisplayMode !== "titleOnly" ? timeMetrics.advanceWidth + hDot.implicitWidth : 0) + 24
+            readonly property real budget: Math.max(root.barContentWidth, minimumBudget)
+            implicitWidth: root.dynamicWidth ? Math.min(budget, controlsWidth + (showTitle ? summaryText.implicitWidth + hRow.spacing : 0)) : budget
             implicitHeight: hRow.implicitHeight
+
+            TextMetrics {
+                id: timeMetrics
+                font: hTime.font
+                text: "88d88h88m"
+            }
 
             // Middle click on the pill: toggle DankCalendar directly (left
             // opens the popout, right refreshes). Only MiddleButton is
@@ -1156,7 +1344,8 @@ PluginComponent {
                 Item {
                     id: summaryClip
 
-                    width: root.dynamicWidth ? Math.min(summaryText.implicitWidth, root.pillMaxWidth) : root.pillMaxWidth
+                    visible: hPill.showTitle
+                    width: Math.max(0, hPill.width - hPill.controlsWidth - hRow.spacing)
                     height: summaryText.implicitHeight
                     clip: true
                     anchors.verticalCenter: parent.verticalCenter
@@ -1166,13 +1355,19 @@ PluginComponent {
                     StyledText {
                         id: summaryText
 
+                        visible: hPill.showTitle
+                        width: root.scrollTitle ? implicitWidth : summaryClip.width
                         text: root.hasEvent ? root.eventSummary : "No events"
+                        textFormat: Text.PlainText
+                        wrapMode: Text.NoWrap
+                        maximumLineCount: 1
+                        elide: root.scrollTitle ? Text.ElideNone : Text.ElideRight
                         font.pixelSize: Theme.fontSizeSmall
                         color: Theme.surfaceText
                     }
 
                     SequentialAnimation {
-                        running: summaryClip.overflow > 0
+                        running: root.scrollTitle && hPill.showTitle && hPill.visible && summaryClip.width > 0 && summaryClip.overflow > 0
                         loops: Animation.Infinite
                         onRunningChanged: if (!running) summaryText.x = 0
 
@@ -1200,24 +1395,27 @@ PluginComponent {
                 }
 
                 StyledText {
+                    id: hDot
                     text: "•"
                     font.pixelSize: Theme.fontSizeSmall
                     font.weight: Font.Medium
                     color: root.timeColor
                     anchors.verticalCenter: parent.verticalCenter
-                    visible: root.hasEvent
+                    visible: hPill.showDot
                 }
 
                 StyledText {
+                    id: hTime
                     text: root.timeText
                     font.pixelSize: Theme.fontSizeSmall
                     font.weight: Font.Medium
                     color: root.timeColor
                     anchors.verticalCenter: parent.verticalCenter
-                    visible: root.hasEvent
+                    visible: hPill.showTime
                 }
 
                 JoinButton {
+                    id: hJoin
                     compact: true
                     visible: root.hasEvent && root.meetingLink(root.eventMeetingUrl) !== ""
                     anchors.verticalCenter: parent.verticalCenter
@@ -1270,9 +1468,20 @@ PluginComponent {
                     anchors.horizontalCenter: parent.horizontalCenter
                 }
 
-                // Compact countdown so it fits a narrow vertical bar. The event
-                // summary (which scrolls on the horizontal pill) is shown in a
-                // hover tooltip instead.
+                StyledText {
+                    width: root.widgetThickness
+                    text: root.hasEvent ? root.eventSummary : "—"
+                    textFormat: Text.PlainText
+                    font.pixelSize: Theme.fontSizeSmall
+                    color: Theme.surfaceText
+                    horizontalAlignment: Text.AlignHCenter
+                    wrapMode: Text.NoWrap
+                    maximumLineCount: 1
+                    elide: Text.ElideRight
+                    anchors.horizontalCenter: parent.horizontalCenter
+                    visible: root.pillDisplayMode !== "countdownOnly"
+                }
+
                 NumericText {
                     width: root.widgetThickness
                     text: root.compactTimeText
@@ -1283,7 +1492,7 @@ PluginComponent {
                     horizontalAlignment: Text.AlignHCenter
                     elide: Text.ElideRight
                     anchors.horizontalCenter: parent.horizontalCenter
-                    visible: root.hasEvent
+                    visible: root.hasEvent && root.pillDisplayMode !== "titleOnly"
                 }
 
                 JoinButton {
