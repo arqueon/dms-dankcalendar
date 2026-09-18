@@ -176,12 +176,14 @@ PluginComponent {
     function refreshAll() {
         root.isLoading = true;
         root.agendaLoading = true;
+        Quickshell.execDetached(["dcal", "ipc", "accounts.refresh"]);
         if (!fetchProcess.running)
             fetchProcess.running = true;
 
         if (!agendaProcess.running)
             agendaProcess.running = true;
 
+        postSyncTimer.restart();
     }
 
     function dateKey(d) {
@@ -384,6 +386,23 @@ PluginComponent {
             if (!agendaProcess.running)
                 agendaProcess.running = true;
 
+        }
+    }
+
+    Timer {
+        id: postSyncTimer
+        interval: 1500
+        repeat: false
+        onTriggered: {
+            if (!fetchProcess.running) {
+                root.isLoading = true;
+                fetchProcess.running = true;
+            }
+
+            if (!agendaProcess.running) {
+                root.agendaLoading = true;
+                agendaProcess.running = true;
+            }
         }
     }
 
