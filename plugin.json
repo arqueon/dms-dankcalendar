@@ -2,7 +2,7 @@
   "id": "dankCalendarAgenda",
   "name": "Dank Calendar Agenda",
   "description": "Configurable dcal countdown with a keyboard-navigable agenda, meeting links, event copying and desktop IPC shortcuts",
-  "version": "1.5.0",
+  "version": "1.5.1",
   "author": "arqueon",
   "icon": "calendar_today",
   "type": "widget",
