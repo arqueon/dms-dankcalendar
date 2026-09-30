@@ -29,7 +29,7 @@ PluginComponent {
     property int refreshInterval: (pluginData.refreshInterval || 30) * 1000
     property int barContentWidth: CalendarUtils.contentWidth(pluginData)
     property string pillDisplayMode: CalendarUtils.displayMode(pluginData.pillDisplayMode)
-    property bool scrollTitle: pluginData.scrollTitle ?? true
+    property bool scrollTitle: pluginData.scrollTitle ?? false
     property bool dynamicWidth: pluginData.dynamicWidth ?? false
     property int lookAheadDays: pluginData.lookAheadDays || 1
     property int nowWindowMinutes: pluginData.nowWindowMinutes ?? 5
@@ -1148,7 +1148,7 @@ PluginComponent {
                                             width: 4
                                             height: 34
                                             radius: 2
-                                            color: agendaRow.phase === "now" ? "#66BB6A" : (agendaRow.phase === "past" ? Theme.surfaceVariantText : Theme.primary)
+                                            color: agendaRow.phase === "now" ? Theme.success : (agendaRow.phase === "past" ? Theme.surfaceVariantText : Theme.primary)
                                             opacity: agendaRow.phase === "past" ? 0.4 : 1
                                             anchors.verticalCenter: parent.verticalCenter
                                         }
@@ -1178,7 +1178,7 @@ PluginComponent {
                                                     return root.eventTimeLabel(ev) + (agendaRow.phase === "now" ? "  ·  Now" : (agendaRow.highlighted ? "  ·  Next" : "")) + (ev.location ? "  ·  " + ev.location : "");
                                                 }
                                                 font.pixelSize: Theme.fontSizeSmall
-                                                color: agendaRow.phase === "now" ? "#66BB6A" : Theme.surfaceVariantText
+                                                color: agendaRow.phase === "now" ? Theme.success : Theme.surfaceVariantText
                                                 elide: Text.ElideRight
                                                 maximumLineCount: 1
                                             }

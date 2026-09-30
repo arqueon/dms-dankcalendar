@@ -58,7 +58,7 @@ PluginSettings {
         settingKey: "scrollTitle"
         label: "Scroll Long Titles"
         description: "Animate overflowing horizontal titles; otherwise truncate them on one line"
-        defaultValue: true
+        defaultValue: false
     }
 
     ToggleSetting {

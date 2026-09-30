@@ -7,6 +7,12 @@ countdown in the bar, and a scrollable agenda one click away.
 Fork of [leoamaro01/dms-dcal](https://github.com/leoamaro01/dms-dcal) with the click
 model of [dms-dankmail](https://github.com/arqueon/dms-dankmail).
 
+This fork keeps dcal as the only calendar backend and adds a grouped agenda,
+12/24-hour formatting, meeting links, keyboard navigation, event copying, IPC
+shortcuts and stable bar width. Some interaction ideas come from
+[Dank Calendar Plus](https://github.com/luckjokerwang/dms-dankcalendar), which
+also offers tasks and AI features; this plugin keeps a smaller dcal-focused UI.
+
 ![Screenshot](assets/screenshot.png)
 
 The agenda popout: shaded day headers, today tinted, happening-now events in green, past
