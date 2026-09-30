@@ -16,6 +16,7 @@ import "." as Local
 // next-event tooltip.
 PluginComponent {
     id: root
+    readonly property int barLabelSize: Theme.barTextSize(barThickness, barConfig ? barConfig.fontScale : undefined, barConfig ? barConfig.maximizeWidgetText : undefined)
 
     property string eventSummary: ""
     property string eventStart: ""
@@ -145,7 +146,7 @@ PluginComponent {
             spacing: Theme.spacingXS
             DankIcon {
                 name: "videocam"
-                size: 16
+                size: Theme.iconSizeSmall
                 color: Theme.primary
                 anchors.verticalCenter: parent.verticalCenter
             }
@@ -1102,7 +1103,7 @@ PluginComponent {
                                     anchors.right: parent.right
                                     anchors.verticalCenter: parent.verticalCenter
                                     height: 26
-                                    radius: Theme.cornerRadiusSmall
+                                    radius: Theme.cornerRadius / 2
                                     color: agendaRow.modelData.isToday ? Theme.withAlpha(Theme.primary, 0.16) : Theme.surfaceContainerHigh
 
                                     StyledText {
@@ -1124,7 +1125,7 @@ PluginComponent {
 
                                     visible: agendaRow.modelData.kind === "event"
                                     anchors.fill: parent
-                                    radius: Theme.cornerRadiusSmall
+                                    radius: Theme.cornerRadius / 2
                                     color: agendaRow.selected ? Theme.withAlpha(Theme.primary, rowHover.hovered ? 0.30 : 0.22) : (agendaRow.highlighted ? Theme.withAlpha(Theme.primary, rowHover.hovered ? 0.24 : 0.14) : (rowHover.hovered ? Theme.surfaceContainerHigh : "transparent"))
                                     border.width: agendaRow.selected ? 2 : (agendaRow.highlighted ? 1 : 0)
                                     border.color: Theme.withAlpha(Theme.primary, agendaRow.selected ? 0.8 : 0.4)
@@ -1147,7 +1148,7 @@ PluginComponent {
                                         Rectangle {
                                             width: 4
                                             height: 34
-                                            radius: 2
+                                            radius: Theme.cornerRadius
                                             color: agendaRow.phase === "now" ? Theme.success : (agendaRow.phase === "past" ? Theme.surfaceVariantText : Theme.primary)
                                             opacity: agendaRow.phase === "past" ? 0.4 : 1
                                             anchors.verticalCenter: parent.verticalCenter
@@ -1250,7 +1251,7 @@ PluginComponent {
                     visible: !todayJumpAnim.running && Math.abs(agendaFlick.contentY - agendaFlick.todayY) > 120
                     width: todayChipRow.implicitWidth + Theme.spacingM * 2
                     height: 28
-                    radius: 14
+                    radius: Theme.cornerRadius
                     color: Theme.primary
                     anchors.horizontalCenter: parent.horizontalCenter
                     anchors.bottom: parent.bottom
@@ -1337,8 +1338,8 @@ PluginComponent {
 
                 DankIcon {
                     name: "calendar_today"
-                    size: iconSize
-                    color: Theme.primary
+                    size: root.iconSize
+                    color: root.hasEvent ? Theme.primary : Theme.widgetIconColor
                     anchors.verticalCenter: parent.verticalCenter
                 }
 
@@ -1363,7 +1364,7 @@ PluginComponent {
                         wrapMode: Text.NoWrap
                         maximumLineCount: 1
                         elide: root.scrollTitle ? Text.ElideNone : Text.ElideRight
-                        font.pixelSize: Theme.fontSizeSmall
+                        font.pixelSize: root.barLabelSize
                         color: Theme.surfaceText
                     }
 
@@ -1398,7 +1399,7 @@ PluginComponent {
                 StyledText {
                     id: hDot
                     text: "•"
-                    font.pixelSize: Theme.fontSizeSmall
+                    font.pixelSize: root.barLabelSize
                     font.weight: Font.Medium
                     color: root.timeColor
                     anchors.verticalCenter: parent.verticalCenter
@@ -1408,7 +1409,7 @@ PluginComponent {
                 StyledText {
                     id: hTime
                     text: root.timeText
-                    font.pixelSize: Theme.fontSizeSmall
+                    font.pixelSize: root.barLabelSize
                     font.weight: Font.Medium
                     color: root.timeColor
                     anchors.verticalCenter: parent.verticalCenter
@@ -1460,12 +1461,12 @@ PluginComponent {
             Column {
                 id: vCol
 
-                spacing: Theme.spacingXS || 4
+                spacing: Theme.spacingXS
 
                 DankIcon {
                     name: "calendar_today"
-                    size: iconSize
-                    color: Theme.primary
+                    size: root.iconSize
+                    color: root.hasEvent ? Theme.primary : Theme.widgetIconColor
                     anchors.horizontalCenter: parent.horizontalCenter
                 }
 
@@ -1473,7 +1474,7 @@ PluginComponent {
                     width: root.widgetThickness
                     text: root.hasEvent ? root.eventSummary : "—"
                     textFormat: Text.PlainText
-                    font.pixelSize: Theme.fontSizeSmall
+                    font.pixelSize: root.barLabelSize
                     color: Theme.surfaceText
                     horizontalAlignment: Text.AlignHCenter
                     wrapMode: Text.NoWrap
@@ -1487,7 +1488,7 @@ PluginComponent {
                     width: root.widgetThickness
                     text: root.compactTimeText
                     reserveText: "99d"
-                    font.pixelSize: Theme.fontSizeSmall
+                    font.pixelSize: root.barLabelSize
                     font.weight: Font.Bold
                     color: root.timeColor
                     horizontalAlignment: Text.AlignHCenter
