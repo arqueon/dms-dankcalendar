@@ -8,7 +8,7 @@ const opened = [];
 let tooltipHidden = 0;
 const context = vm.createContext({
     hideEventTooltip() { tooltipHidden++; },
-    Qt: { openUrlExternally: url => opened.push(url) },
+    Quickshell: { execDetached: command => opened.push(Array.from(command)) },
 });
 for (const name of ['selectHighlightedEvent', 'meetingLink', 'joinMeeting']) {
     const fn = qml.match(new RegExp('    function ' + name + '\\([^]*?\\n    \\}'));
@@ -30,7 +30,7 @@ assert.equal(context.selectHighlightedEvent([ev('ended', -5, 0), next], now), ne
 assert.equal(context.selectHighlightedEvent([active, ev('earlier', -10, 20)], now).uid, 'earlier');
 assert.equal(context.selectHighlightedEvent([{uid:'invalid',start:'invalid'}, next], now), next);
 context.joinMeeting(' https://example.com/meet/design?room=demo ');
-assert.deepEqual(opened, ['https://example.com/meet/design?room=demo']);
+assert.deepEqual(opened, [['dms', 'open', 'https://example.com/meet/design?room=demo']]);
 assert.equal(tooltipHidden, 1);
 for (const link of ['', null, 'javascript:alert(1)', 'file:///tmp/demo', 'https://example.com/a b']) {
     context.joinMeeting(link);

@@ -122,7 +122,8 @@ PluginComponent {
         var url = meetingLink(link);
         if (url) {
             hideEventTooltip();
-            Qt.openUrlExternally(url);
+            // Use DMS's browser picker for meeting links.
+            Quickshell.execDetached(["dms", "open", url]);
         }
     }
 

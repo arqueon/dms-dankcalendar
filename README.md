@@ -25,7 +25,7 @@ events dimmed, and a floating **Today** chip to jump back when you scroll away.
 | Left click | Agenda popout, opened at today |
 | Click an event in the popout | Opens that event's details in DankCalendar |
 | Copy button / `c` in the agenda | Copies the selected event's title, local date, schedule and location |
-| Join Meeting / Join button | Opens the event's meeting link with the default URL handler |
+| Join Meeting / Join button | Opens the event's meeting link through the DMS browser picker |
 | `+` in the popout header | Opens DankCalendar in day view to create an event |
 | Right click / sync button | Requests account sync and refreshes the countdown and agenda |
 | Middle click | Toggles the DankCalendar window |
