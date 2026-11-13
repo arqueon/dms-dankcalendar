@@ -50,7 +50,7 @@ Runtime dependencies: `dcal` (calendar daemon with IPC) and `jq`.
 
 ## DMS Plugin Conventions
 
-QML files import DMS-provided namespaces (`qs.Common`, `qs.Widgets`, `qs.Services`,
+QML files import DMS-provided namespaces (`qs.Common`, `qs.DCommon.Widgets`, `qs.Services`,
 `qs.Modules.Plugins`) that have no external documentation. Settings are read as
 `pluginData.<key> || <default>`. With `popoutContent` set, left click opens the popout
 automatically; `pillRightClickAction` handles right click; middle click needs a

@@ -3,9 +3,9 @@ import Quickshell
 import Quickshell.Io
 import Quickshell.Wayland
 import qs.Common
+import qs.DCommon.Widgets
 import qs.Modules.Plugins
 import qs.Services
-import qs.Widgets
 import "calendarUtils.js" as CalendarUtils
 import "." as Local
 
@@ -145,7 +145,7 @@ PluginComponent {
             id: joinContent
             anchors.centerIn: parent
             spacing: Theme.spacingXS
-            DankIcon {
+            DIcon {
                 name: "videocam"
                 size: Theme.iconSizeSmall
                 color: Theme.primary
@@ -785,7 +785,7 @@ PluginComponent {
                         spacing: Theme.spacingXS
                         visible: root.hasEvent && root.eventLocation !== ""
 
-                        DankIcon {
+                        DIcon {
                             name: "location_on"
                             size: Theme.iconSizeSmall
                             color: Theme.surfaceVariantText
@@ -818,7 +818,7 @@ PluginComponent {
                         spacing: Theme.spacingXS
                         visible: root.hasEvent && (root.eventMeetingUrl !== "" || root.eventUrl !== "")
 
-                        DankIcon {
+                        DIcon {
                             name: root.eventMeetingUrl !== "" ? "videocam" : "link"
                             size: Theme.iconSizeSmall
                             color: Theme.primary
@@ -941,7 +941,7 @@ PluginComponent {
                     anchors.rightMargin: Theme.spacingXS
                     anchors.verticalCenter: parent.verticalCenter
 
-                    DankActionButton {
+                    DActionButton {
                         iconName: "add"
                         onClicked: {
                             root.newEvent();
@@ -951,19 +951,19 @@ PluginComponent {
                         }
                     }
 
-                    DankActionButton {
+                    DActionButton {
                         iconName: "sync"
                         iconColor: root.agendaLoading ? Theme.primary : Theme.surfaceText
                         onClicked: root.refreshAll()
                     }
 
-                    DankActionButton {
+                    DActionButton {
                         iconName: "content_copy"
                         visible: root.selectedAgendaEvent() !== null
                         onClicked: root.copyEvent(root.selectedAgendaEvent())
                     }
 
-                    DankActionButton {
+                    DActionButton {
                         iconName: "close"
                         onClicked: {
                             if (popout.closePopout)
@@ -986,7 +986,7 @@ PluginComponent {
 
                 implicitHeight: Math.max(40, Math.min(root.agendaContentHeight + Theme.spacingM * 2, maxListHeight))
 
-                DankFlickable {
+                DFlickable {
                     id: agendaFlick
 
                     anchors.fill: parent
@@ -1264,7 +1264,7 @@ PluginComponent {
                         anchors.centerIn: parent
                         spacing: Theme.spacingXS
 
-                        DankIcon {
+                        DIcon {
                             name: agendaFlick.contentY > agendaFlick.todayY ? "arrow_upward" : "arrow_downward"
                             size: Theme.iconSizeSmall
                             color: Theme.primaryText
@@ -1338,7 +1338,7 @@ PluginComponent {
 
                 spacing: Theme.spacingXS
 
-                DankIcon {
+                DIcon {
                     name: "calendar_today"
                     size: root.iconSize
                     color: root.hasEvent ? Theme.primary : Theme.widgetIconColor
@@ -1466,7 +1466,7 @@ PluginComponent {
 
                 spacing: Theme.spacingXS
 
-                DankIcon {
+                DIcon {
                     name: "calendar_today"
                     size: root.iconSize
                     color: root.hasEvent ? Theme.primary : Theme.widgetIconColor

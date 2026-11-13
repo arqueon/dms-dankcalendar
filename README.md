@@ -67,6 +67,7 @@ only reads the cache; it does not request extra provider syncs.
 
 ## Requirements
 
+- Dux Shell (DankMaterialShell) >= 2.0.0
 - `dcal` (DankCalendar daemon with IPC) running
 - `jq`
 
