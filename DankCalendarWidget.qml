@@ -1329,6 +1329,7 @@ PluginComponent {
                 // capsule margin were falling through to the bar canvas.
                 anchors.margins: -10
                 acceptedButtons: Qt.MiddleButton
+                cursorShape: Qt.PointingHandCursor
                 onClicked: root.toggleDcal()
             }
 
@@ -1456,6 +1457,7 @@ PluginComponent {
                 // capsule margin were falling through to the bar canvas.
                 anchors.margins: -10
                 acceptedButtons: Qt.MiddleButton
+                cursorShape: Qt.PointingHandCursor
                 onClicked: root.toggleDcal()
             }
 
