@@ -6,6 +6,7 @@ Established: 2026-09-18. Source: existing 1.4.0 widget, DMS components and the a
 - Inherit DMS's live `Theme` palette and font through `StyledText`, `NumericText` and `DankIcon`.
 - Surfaces: `Theme.surfaceContainerHigh`; text: `Theme.surfaceText` / `Theme.surfaceVariantText`.
 - Calendar, countdown, Join and selection: `Theme.primary` with existing translucent fills.
+- Agenda event stripes: the event's dcal calendar color, falling back to the theme colors above.
 - Small bar/row text: `Theme.fontSizeSmall`; header: existing `Theme.fontSizeLarge + 2`.
 - Light/dark colors and contrast are supplied by the desktop theme, not a static web palette.
 
