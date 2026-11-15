@@ -118,6 +118,15 @@ PluginComponent {
         return /^https?:\/\/[^\s/]+(?:[/?#][^\s]*)?$/i.test(link) ? link : "";
     }
 
+    // The event's calendar color from get-agenda-events, or "" when it has
+    // none or it is not a plain #rgb / #rrggbb value, so callers can fall back
+    // with ||. It lives here, not in calendarUtils.js: a plugin reload
+    // re-reads this file, but the engine keeps its cached copy of the library.
+    function calendarColor(ev) {
+        var color = ev ? ev.calendarColor : "";
+        return typeof color === "string" && /^#([0-9a-f]{3}|[0-9a-f]{6})$/i.test(color) ? color : "";
+    }
+
     function joinMeeting(link) {
         var url = meetingLink(link);
         if (url) {
@@ -1150,7 +1159,7 @@ PluginComponent {
                                             width: 4
                                             height: 34
                                             radius: Theme.cornerRadius
-                                            color: CalendarUtils.calendarColor(agendaRow.modelData.ev) || (agendaRow.phase === "now" ? Theme.success : (agendaRow.phase === "past" ? Theme.surfaceVariantText : Theme.primary))
+                                            color: root.calendarColor(agendaRow.modelData.ev) || (agendaRow.phase === "now" ? Theme.success : (agendaRow.phase === "past" ? Theme.surfaceVariantText : Theme.primary))
                                             opacity: agendaRow.phase === "past" ? 0.4 : 1
                                             anchors.verticalCenter: parent.verticalCenter
                                         }

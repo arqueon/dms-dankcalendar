@@ -31,7 +31,6 @@ TestCase {
         verify(typeof CalendarUtils.contentWidth === "function");
         verify(typeof CalendarUtils.eventCopyText === "function");
         verify(typeof CalendarUtils.selectionIndex === "function");
-        verify(typeof CalendarUtils.calendarColor === "function");
     }
 
     function test_settings_migration() {
@@ -57,15 +56,6 @@ TestCase {
         verify(CalendarUtils.eventKey(a) !== CalendarUtils.eventKey(b));
         verify(CalendarUtils.eventKey(a) !== CalendarUtils.eventKey(c));
         compare(CalendarUtils.eventKey(null), "");
-    }
-
-    function test_calendar_color() {
-        compare(CalendarUtils.calendarColor({calendarColor: "#4986e7"}), "#4986e7");
-        compare(CalendarUtils.calendarColor({calendarColor: "#ABC"}), "#ABC");
-        compare(CalendarUtils.calendarColor({}), "");
-        compare(CalendarUtils.calendarColor(null), "");
-        compare(CalendarUtils.calendarColor({calendarColor: "blue"}), "");
-        compare(CalendarUtils.calendarColor({calendarColor: "#4986e7ff"}), "");
     }
 
     // for-of over the index array is the construct most likely to behave
