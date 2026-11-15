@@ -43,10 +43,10 @@ Runtime dependencies: `dcal` (calendar daemon with IPC) and `jq`.
   register/unregister and commands route to one instance on the focused monitor.
 - **`get-next-event`** — Next upcoming event within the look-ahead window, emitted
   as compact JSON including meeting links and tooltip details.
-- **`get-agenda-events PAST FUTURE`** — Emits `dcal ipc events.list` JSON for local
-  midnight−PAST days → local midnight+FUTURE days. Local→UTC conversion goes through an
-  epoch because `date -u -d` parses its input as UTC; the widget sorts (by day, all-day
-  first within a day, then by start).
+- **`get-agenda-events PAST FUTURE`** — Emits `dcal ipc events.list` JSON, each event enriched with
+  `calendarColor` from `dcal ipc calendars.list` when available, for local midnight−PAST days →
+  local midnight+FUTURE days. Local→UTC conversion goes through an epoch because `date -u -d`
+  parses its input as UTC; the widget sorts (by day, all-day first within a day, then by start).
 
 ## DMS Plugin Conventions
 

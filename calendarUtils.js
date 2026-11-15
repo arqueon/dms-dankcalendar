@@ -17,6 +17,13 @@ function eventKey(ev) {
     return ev ? JSON.stringify([ev.calendarId || "", ev.uid || ev.id || "", ev.start || ""]) : "";
 }
 
+// The event's calendar color from get-agenda-events, or "" when it has none
+// or it is not a plain #rgb / #rrggbb value, so callers can fall back with ||.
+function calendarColor(ev) {
+    var color = ev ? ev.calendarColor : "";
+    return typeof color === "string" && /^#([0-9a-f]{3}|[0-9a-f]{6})$/i.test(color) ? color : "";
+}
+
 function eventIndices(model) {
     var indices = [];
     for (var i = 0; i < model.length; i++) {

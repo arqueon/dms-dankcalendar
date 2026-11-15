@@ -1150,7 +1150,7 @@ PluginComponent {
                                             width: 4
                                             height: 34
                                             radius: Theme.cornerRadius
-                                            color: agendaRow.phase === "now" ? Theme.success : (agendaRow.phase === "past" ? Theme.surfaceVariantText : Theme.primary)
+                                            color: CalendarUtils.calendarColor(agendaRow.modelData.ev) || (agendaRow.phase === "now" ? Theme.success : (agendaRow.phase === "past" ? Theme.surfaceVariantText : Theme.primary))
                                             opacity: agendaRow.phase === "past" ? 0.4 : 1
                                             anchors.verticalCenter: parent.verticalCenter
                                         }

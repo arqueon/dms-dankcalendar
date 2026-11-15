@@ -1,10 +1,11 @@
 #!/usr/bin/env bash
-# Emits the raw events.list JSON for a window of local calendar days:
+# Emits the events.list JSON for a window of local calendar days:
 # PAST_DAYS before today's local midnight through FUTURE_DAYS after it
 # (converted to UTC — note `date -u -d` would parse the input as UTC too,
-# so the conversion goes through an epoch). The widget groups and renders;
-# on any failure emit an empty list so the popout shows a clean "no
-# events" state.
+# so the conversion goes through an epoch). Each event whose calendar has
+# a color in `dcal ipc calendars.list` gains a `calendarColor` field. The
+# widget groups and renders; if events.list fails emit an empty list so the
+# popout shows a clean "no events" state.
 set -eu
 
 PAST_DAYS="${1:-7}"
@@ -16,4 +17,21 @@ END_DAY=$(date -d "${TODAY} +${FUTURE_DAYS} days" +%F)
 FROM=$(date -u -d "@$(date -d "${START_DAY}" +%s)" +%Y-%m-%dT%H:%M:%SZ)
 TO=$(date -u -d "@$(date -d "${END_DAY}" +%s)" +%Y-%m-%dT%H:%M:%SZ)
 
-dcal ipc events.list from="${FROM}" to="${TO}" 2>/dev/null || echo '{"events":[]}'
+events=$(dcal ipc events.list from="${FROM}" to="${TO}" 2>/dev/null) || {
+    printf '%s\n' '{"events":[]}'
+    exit 0
+}
+
+# Calendar colors are optional: if calendars.list or the join fails, the
+# events go out unchanged and the widget keeps its theme colors.
+if calendars=$(dcal ipc calendars.list 2>/dev/null) &&
+    enriched=$(printf '%s\n' "$events" | jq -c --argjson calendars "$calendars" '
+        ([$calendars[] | select((.color | type) == "string" and .color != "")
+            | {key: .id, value: .color}] | from_entries) as $colors
+        | .events |= map($colors[.calendarId // ""] as $color
+            | if $color then . + {calendarColor: $color} else . end)
+    ' 2>/dev/null); then
+    events=$enriched
+fi
+
+printf '%s\n' "$events"

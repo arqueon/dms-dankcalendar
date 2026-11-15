@@ -142,4 +142,14 @@ assert.equal(copy({summary: 42}, '', ''), '42', 'non-string fields are coerced, 
 assert.equal(copy(null, 'Friday', '09:00'), '(untitled)\nFriday · 09:00', 'a missing event never throws');
 assert.equal(copy({summary: 'A', location: ''}, 'D', 'T'), 'A\nD · T', 'an empty location adds no line');
 
+// --- 9. Calendar colors are used only when they are plain hex colors ---
+const color = U.calendarColor;
+assert.equal(color({calendarColor: '#4986e7'}), '#4986e7');
+assert.equal(color({calendarColor: '#ABC'}), '#ABC', 'short and upper-case hex is accepted');
+assert.equal(color({}), '', 'no calendar color falls back to the theme');
+assert.equal(color(null), '', 'header rows carry no event');
+assert.equal(color(undefined), '');
+for (const bogus of ['', 'blue', '#12345', '#4986e7ff', 'rgb(0,0,0)', 42, null, {}])
+    assert.equal(color({calendarColor: bogus}), '', 'unusable value ' + JSON.stringify(bogus) + ' falls back');
+
 console.log('calendarUtils tests: ok');
