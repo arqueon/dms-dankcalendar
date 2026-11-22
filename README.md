@@ -135,6 +135,7 @@ binds {
 - **Bar Display** — title and countdown, countdown only, or title only
 - **Scroll Long Titles** — animate overflowing horizontal titles or truncate them
 - **Hover Tooltip** — toggle the next-event hover tooltip
+- **Hide When No Events** — hide the bar pill when nothing is inside the look-ahead window
 - **Bar Content Width** — horizontal content budget, including the controls (120–600 px)
 - **Now Duration** — how long to show "Now" after an event starts
 - **Agenda: Days Back** — past days kept scrollable in the popout (0–90, default 7)

@@ -68,6 +68,13 @@ PluginSettings {
         defaultValue: true
     }
 
+    ToggleSetting {
+        settingKey: "hideWhenEmpty"
+        label: "Hide When No Events"
+        description: "Hide the bar pill when nothing starts within the look-ahead window (middle-click/IPC still work)"
+        defaultValue: false
+    }
+
     SliderSetting {
         settingKey: "barContentWidth"
         label: "Bar Content Width"
