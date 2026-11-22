@@ -112,7 +112,20 @@ PluginSettings {
         leftIcon: "view_agenda"
     }
 
+    SelectionSetting {
+        id: lookAheadUnit
+        settingKey: "lookAheadUnit"
+        label: "Look Ahead Unit"
+        description: "Set the countdown window in days or hours"
+        options: [
+            { label: "Days", value: "days" },
+            { label: "Hours", value: "hours" }
+        ]
+        defaultValue: "days"
+    }
+
     SliderSetting {
+        visible: lookAheadUnit.value !== "hours"
         settingKey: "lookAheadDays"
         label: "Look Ahead"
         description: "How many days ahead to check for events"
@@ -121,5 +134,17 @@ PluginSettings {
         maximum: 7
         unit: "days"
         leftIcon: "date_range"
+    }
+
+    SliderSetting {
+        visible: lookAheadUnit.value === "hours"
+        settingKey: "lookAheadHours"
+        label: "Look Ahead"
+        description: "Only count down to events starting within this many hours"
+        defaultValue: 24
+        minimum: 1
+        maximum: 48
+        unit: "h"
+        leftIcon: "schedule"
     }
 }
