@@ -139,7 +139,8 @@ binds {
 - **Now Duration** — how long to show "Now" after an event starts
 - **Agenda: Days Back** — past days kept scrollable in the popout (0–90, default 7)
 - **Agenda: Days Ahead** — upcoming days the popout covers (7–90, default 30)
-- **Look Ahead** — how many days ahead the countdown searches
+- **Look Ahead** — how far ahead the countdown searches, in days (1–7, default) or hours (1–48) via **Look Ahead Unit**
+- **Hide When No Events** — hide the bar pill when nothing is inside the look-ahead window
 
 ### Width setting upgrade from 1.4
 
