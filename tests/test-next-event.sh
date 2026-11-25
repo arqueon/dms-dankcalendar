@@ -17,7 +17,7 @@ jq -nc --arg start "$start" --arg end "$end" '{events:[{
 SH
 chmod +x "$fake_bin/dcal"
 
-payload=$(PATH="$fake_bin:$PATH" "$repo_dir/get-next-event" 1 5)
+payload=$(PATH="$fake_bin:$PATH" "$repo_dir/get-next-event" 24 5)
 jq -e '
   .summary == "Planning = review" and
   .allDay == false and

@@ -32,7 +32,8 @@ PluginComponent {
     property string pillDisplayMode: CalendarUtils.displayMode(pluginData.pillDisplayMode)
     property bool scrollTitle: pluginData.scrollTitle ?? false
     property bool dynamicWidth: pluginData.dynamicWidth ?? false
-    property int lookAheadDays: pluginData.lookAheadDays || 1
+    // The script takes hours; "days" (the default) keeps the original setting.
+    property int lookAheadHours: pluginData.lookAheadUnit === "hours" ? (pluginData.lookAheadHours || 24) : (pluginData.lookAheadDays || 1) * 24
     property int nowWindowMinutes: pluginData.nowWindowMinutes ?? 5
     property bool showTooltip: pluginData.showTooltip ?? true
     property real countdownNow: Date.now()
@@ -363,6 +364,13 @@ PluginComponent {
         postSyncTimer.restart();
     }
 
+    // Settings that change the fetch window re-fetch immediately instead of
+    // waiting for the next refresh tick; queueFetch coalesces slider drags.
+    onLookAheadHoursChanged: reloadEvents()
+    onNowWindowMinutesChanged: reloadEvents()
+    onAgendaPastDaysChanged: reloadEvents()
+    onAgendaFutureDaysChanged: reloadEvents()
+
     function reloadEvents() {
         root.isLoading = true;
         root.agendaLoading = true;
@@ -508,7 +516,7 @@ PluginComponent {
         id: fetchProcess
 
         property bool reloadPending: false
-        command: ["bash", root.scriptPath, String(root.lookAheadDays), String(root.nowWindowMinutes)]
+        command: ["bash", root.scriptPath, String(root.lookAheadHours), String(root.nowWindowMinutes)]
         running: false
         onExited: (exitCode, exitStatus) => {
             console.log("[dankCalendarAgenda] script exited:", exitCode, "summary:", root.eventSummary, "start:", root.eventStart);
