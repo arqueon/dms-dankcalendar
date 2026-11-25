@@ -28,6 +28,7 @@ events dimmed, and a floating **Today** chip to jump back when you scroll away.
 | Join Meeting / Join button | Opens the event's meeting link through the DMS browser picker |
 | `+` in the popout header | Opens DankCalendar in day view to create an event |
 | Right click / sync button | Requests account sync and refreshes the countdown and agenda |
+| Play / Pause in the popout header | Starts or pauses event rotation; pausing returns to the nearest event |
 | Middle click | Toggles the DankCalendar window |
 | Hover | Privacy-conscious event card with schedule, location, a short description and link availability |
 

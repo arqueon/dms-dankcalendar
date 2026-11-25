@@ -8,10 +8,12 @@ const opened = [];
 let tooltipHidden = 0;
 const context = vm.createContext({
     CalendarUtils: {eventKey: ev => ev ? JSON.stringify([ev.calendarId || '', ev.uid || ev.id || '', ev.start || '']) : ''},
+    rotationIndex: 2,
+    rotationPlaying: true,
     hideEventTooltip() { tooltipHidden++; },
     Quickshell: { execDetached: command => opened.push(Array.from(command)) },
 });
-for (const name of ['selectHighlightedEvent', 'buildRotationEvents', 'meetingLink', 'joinMeeting']) {
+for (const name of ['selectHighlightedEvent', 'buildRotationEvents', 'toggleRotationPlayback', 'meetingLink', 'joinMeeting']) {
     const fn = qml.match(new RegExp('    function ' + name + '\\([^]*?\\n    \\}'));
     assert.ok(fn, 'Missing QML function: ' + name);
     vm.runInContext(fn[0], context);
@@ -40,6 +42,13 @@ assert.deepEqual(Array.from(context.buildRotationEvents(
 ), item => item.uid), ['current', 'next-up', 'later'], 'rotation includes current plus N future timed, non-cancelled events');
 assert.deepEqual(Array.from(context.buildRotationEvents([rotationCurrent], rotationCurrent, now, 0)), [],
     'zero upcoming events disables rotation');
+context.toggleRotationPlayback();
+assert.equal(context.rotationPlaying, false, 'pause disables automatic rotation');
+assert.equal(context.rotationIndex, 0, 'pause returns to the nearest event');
+context.rotationIndex = 2;
+context.toggleRotationPlayback();
+assert.equal(context.rotationPlaying, true, 'play resumes automatic rotation');
+assert.equal(context.rotationIndex, 0, 'resume starts with the nearest event');
 context.joinMeeting(' https://example.com/meet/design?room=demo ');
 assert.deepEqual(opened, [['dms', 'open', 'https://example.com/meet/design?room=demo']]);
 assert.equal(tooltipHidden, 1);

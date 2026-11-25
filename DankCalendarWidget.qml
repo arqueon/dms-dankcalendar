@@ -37,13 +37,15 @@ PluginComponent {
     property int nowWindowMinutes: pluginData.nowWindowMinutes ?? 5
     property bool showTooltip: pluginData.showTooltip ?? true
     property bool rotateEvents: pluginData.rotateEvents ?? false
+    property bool rotationPlaying: pluginData.rotateEvents ?? false
     property int rotateNextCount: pluginData.rotateNextCount ?? 2
     property int rotateIntervalSeconds: pluginData.rotateIntervalSeconds ?? 5
     property real countdownNow: Date.now()
     property int rotationIndex: 0
     readonly property var rotationEvents: buildRotationEvents(agendaEvents, highlightedEvent, countdownNow, rotateNextCount)
-    readonly property bool rotationActive: rotateEvents && rotationEvents.length > 1
-    readonly property var rotationEvent: rotationActive ? rotationEvents[rotationIndex % rotationEvents.length] : null
+    readonly property bool rotationActive: rotationPlaying && rotationEvents.length > 1
+    readonly property var rotationEvent: (rotateEvents || rotationPlaying) && rotationEvents.length > 0
+        ? rotationEvents[rotationIndex % rotationEvents.length] : null
     readonly property string shownSummary: rotationEvent ? (rotationEvent.summary || "(untitled)") : eventSummary
     readonly property string shownStart: rotationEvent ? (rotationEvent.start || "") : eventStart
     readonly property string shownEnd: rotationEvent ? (rotationEvent.end || "") : eventEnd
@@ -96,7 +98,10 @@ PluginComponent {
 
     onAgendaEventsChanged: rotationIndex = 0
     onHighlightedEventChanged: rotationIndex = 0
-    onRotateEventsChanged: rotationIndex = 0
+    onRotateEventsChanged: {
+        rotationPlaying = rotateEvents;
+        rotationIndex = 0;
+    }
 
     Component.onCompleted: Local.AgendaController.registerRoot(root)
     Component.onDestruction: Local.AgendaController.unregisterRoot(root)
@@ -137,8 +142,13 @@ PluginComponent {
     }
 
     function advanceRotation() {
-        if (rotationEvents.length > 1)
+        if (rotationActive)
             rotationIndex = (rotationIndex + 1) % rotationEvents.length;
+    }
+
+    function toggleRotationPlayback() {
+        rotationIndex = 0;
+        rotationPlaying = !rotationPlaying;
     }
     readonly property int upcomingCount: {
         var n = 0;
@@ -1015,12 +1025,8 @@ PluginComponent {
                     }
 
                     DActionButton {
-                        iconName: "close"
-                        onClicked: {
-                            if (popout.closePopout)
-                                popout.closePopout();
-
-                        }
+                        iconName: root.rotationPlaying ? "pause" : "play_arrow"
+                        onClicked: root.toggleRotationPlayback()
                     }
 
                 }
