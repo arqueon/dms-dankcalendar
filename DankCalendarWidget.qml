@@ -56,6 +56,10 @@ PluginComponent {
     }
     property bool isLessThanOneMin: !isNow && remainingMs > 0 && remainingMs < 60000
     property bool hasEvent: eventSummary !== ""
+    property bool hideWhenEmpty: pluginData.hideWhenEmpty ?? false
+    // Hidden only after the first fetch, so the pill doesn't flicker at startup.
+    _visibilityOverride: hideWhenEmpty && !isLoading && !hasEvent
+    _visibilityOverrideValue: false
     property string timeText: formatTimeRemaining()
     property string compactTimeText: formatCompactTimeRemaining()
     property color timeColor: Theme.primary
