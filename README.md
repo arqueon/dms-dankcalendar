@@ -33,7 +33,9 @@ events dimmed, and a floating **Today** chip to jump back when you scroll away.
 
 The agenda covers a configurable window (default 7 days back, 30 ahead), grouped by
 day with shaded headers — today tinted, happening-now events in green, past events
-dimmed — and a divider each time the week changes. It always opens scrolled to today.
+dimmed — and a divider each time the week changes. By default it opens at the
+happening or next upcoming event; **Open at Next Event** can be disabled to open at
+today instead.
 
 The current timed event is highlighted with **Now**, or the next timed event with
 **Next** when nothing is in progress. All-day and cancelled events do not take this
@@ -50,6 +52,9 @@ Event times in the agenda and tooltip follow DMS's 12/24-hour clock and
 The bar offers **Title and countdown**, **Countdown only**, and **Title only**
 modes. Long horizontal titles can either scroll or truncate with an ellipsis;
 vertical titles stay on one line. Meeting controls remain available in every mode.
+Optional **Rotate Events** cycles the current/next event plus a configurable number
+of upcoming events. The title slides left in a retro LCD-style transition while
+the countdown fades to the time remaining for the incoming event.
 
 With **Dynamic Width** off, the horizontal content width stays stable as the
 countdown changes or the meeting button appears. Its budget includes the calendar
@@ -135,10 +140,14 @@ binds {
 - **Bar Display** — title and countdown, countdown only, or title only
 - **Scroll Long Titles** — animate overflowing horizontal titles or truncate them
 - **Hover Tooltip** — toggle the next-event hover tooltip
+- **Rotate Events** — cycle the current/next event and upcoming events in the bar
+- **Events in Rotation** — number of upcoming events included after the current/next event
+- **Rotation Interval** — time each event stays visible before the transition
 - **Bar Content Width** — horizontal content budget, including the controls (120–600 px)
 - **Now Duration** — how long to show "Now" after an event starts
 - **Agenda: Days Back** — past days kept scrollable in the popout (0–90, default 7)
 - **Agenda: Days Ahead** — upcoming days the popout covers (7–90, default 30)
+- **Open at Next Event** — open the agenda at the happening/next event instead of today
 - **Look Ahead** — how many days ahead the countdown searches
 
 ### Width setting upgrade from 1.4

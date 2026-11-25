@@ -68,6 +68,35 @@ PluginSettings {
         defaultValue: true
     }
 
+    ToggleSetting {
+        settingKey: "rotateEvents"
+        label: "Rotate Events"
+        description: "Cycle the current/next event and upcoming events in the bar"
+        defaultValue: false
+    }
+
+    SliderSetting {
+        settingKey: "rotateNextCount"
+        label: "Events in Rotation"
+        description: "Number of upcoming events to include after the current/next event"
+        defaultValue: 2
+        minimum: 1
+        maximum: 10
+        unit: "next"
+        leftIcon: "event"
+    }
+
+    SliderSetting {
+        settingKey: "rotateIntervalSeconds"
+        label: "Rotation Interval"
+        description: "How long each event stays in the bar before the LCD-style transition"
+        defaultValue: 5
+        minimum: 2
+        maximum: 20
+        unit: "sec"
+        leftIcon: "schedule"
+    }
+
     SliderSetting {
         settingKey: "barContentWidth"
         label: "Bar Content Width"
@@ -110,6 +139,13 @@ PluginSettings {
         maximum: 90
         unit: "days"
         leftIcon: "view_agenda"
+    }
+
+    ToggleSetting {
+        settingKey: "openAtNextEvent"
+        label: "Open at Next Event"
+        description: "Scroll the agenda to the happening or next upcoming event when it opens; turn off to open at today"
+        defaultValue: true
     }
 
     SliderSetting {

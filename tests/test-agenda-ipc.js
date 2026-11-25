@@ -39,7 +39,7 @@ function makeWidget(screen) {
         'refreshAgendaFromIpc', 'agendaStatusFromIpc', 'refreshAll', 'reloadEvents', 'queueFetch',
         'finishFetch'], context);
     // The popout's own opened handler, which clears the in-flight flag.
-    context.agendaFlick = {resetToToday() {}, scrollSelectedIntoView() {}};
+    context.agendaFlick = {resetToInitial() {}, scrollSelectedIntoView() {}};
     context.popout = {focusAgenda() {}, parentPopout: null};
     context.syncAgendaSelection = () => {};
     context.selectedEventKey = '';

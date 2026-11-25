@@ -16,6 +16,7 @@ import "." as Local
 // next-event tooltip.
 PluginComponent {
     id: root
+    signal rotateDisplayRequested()
     readonly property int barLabelSize: Theme.barTextSize(barThickness, barConfig ? barConfig.fontScale : undefined, barConfig ? barConfig.maximizeWidgetText : undefined)
 
     property string eventSummary: ""
@@ -35,34 +36,50 @@ PluginComponent {
     property int lookAheadDays: pluginData.lookAheadDays || 1
     property int nowWindowMinutes: pluginData.nowWindowMinutes ?? 5
     property bool showTooltip: pluginData.showTooltip ?? true
+    property bool rotateEvents: pluginData.rotateEvents ?? false
+    property int rotateNextCount: pluginData.rotateNextCount ?? 2
+    property int rotateIntervalSeconds: pluginData.rotateIntervalSeconds ?? 5
     property real countdownNow: Date.now()
+    property int rotationIndex: 0
+    readonly property var rotationEvents: buildRotationEvents(agendaEvents, highlightedEvent, countdownNow, rotateNextCount)
+    readonly property bool rotationActive: rotateEvents && rotationEvents.length > 1
+    readonly property var rotationEvent: rotationActive ? rotationEvents[rotationIndex % rotationEvents.length] : null
+    readonly property string shownSummary: rotationEvent ? (rotationEvent.summary || "(untitled)") : eventSummary
+    readonly property string shownStart: rotationEvent ? (rotationEvent.start || "") : eventStart
+    readonly property string shownEnd: rotationEvent ? (rotationEvent.end || "") : eventEnd
+    readonly property bool shownAllDay: rotationEvent ? rotationEvent.allDay === true : eventAllDay
+    readonly property string shownLocation: rotationEvent ? (rotationEvent.location || "") : eventLocation
+    readonly property string shownDescription: rotationEvent ? (rotationEvent.description || "") : eventDescription
+    readonly property string shownMeetingUrl: rotationEvent ? (rotationEvent.meetingUrl || "") : eventMeetingUrl
+    readonly property string shownUrl: rotationEvent ? (rotationEvent.url || "") : eventUrl
     property real remainingMs: {
-        if (!eventStart)
+        if (!shownStart)
             return -1;
 
-        var startMs = eventDate(eventStart, eventAllDay).getTime();
+        var startMs = eventDate(shownStart, shownAllDay).getTime();
         return startMs - countdownNow;
     }
     property bool isNow: {
-        if (nowWindowMinutes <= 0 || eventStart === "" || remainingMs > 0)
+        if (nowWindowMinutes <= 0 || shownStart === "" || remainingMs > 0)
             return false;
 
-        var startMs = eventDate(eventStart, eventAllDay).getTime();
-        var endMs = eventEnd ? eventDate(eventEnd, eventAllDay).getTime() : startMs;
+        var startMs = eventDate(shownStart, shownAllDay).getTime();
+        var endMs = shownEnd ? eventDate(shownEnd, shownAllDay).getTime() : startMs;
         var duration = endMs - startMs;
         var maxWindow = nowWindowMinutes * 60000;
         var nowWindow = duration < maxWindow ? duration : maxWindow;
         return countdownNow < startMs + nowWindow;
     }
     property bool isLessThanOneMin: !isNow && remainingMs > 0 && remainingMs < 60000
-    property bool hasEvent: eventSummary !== ""
+    property bool hasEvent: shownSummary !== ""
     property string timeText: formatTimeRemaining()
     property string compactTimeText: formatCompactTimeRemaining()
-    property color timeColor: Theme.primary
+    property color timeColor: remainingMs > 0 ? "#FFC107" : Theme.primary
     property string scriptPath: PluginService.pluginDirectory + "/dankCalendarAgenda/get-next-event"
     property string agendaScriptPath: PluginService.pluginDirectory + "/dankCalendarAgenda/get-agenda-events"
     property int agendaPastDays: pluginData.agendaPastDays ?? 7
     property int agendaFutureDays: pluginData.agendaFutureDays || 30
+    property bool openAtNextEvent: pluginData.openAtNextEvent ?? true
     property var agendaEvents: []
     property var agendaModel: []
     property int agendaContentHeight: 0
@@ -76,6 +93,10 @@ PluginComponent {
     // Prefer a timed event in progress; otherwise the next timed event.
     // All-day entries should not hide the next actual appointment.
     readonly property var highlightedEvent: selectHighlightedEvent(agendaEvents, countdownNow)
+
+    onAgendaEventsChanged: rotationIndex = 0
+    onHighlightedEventChanged: rotationIndex = 0
+    onRotateEventsChanged: rotationIndex = 0
 
     Component.onCompleted: Local.AgendaController.registerRoot(root)
     Component.onDestruction: Local.AgendaController.unregisterRoot(root)
@@ -95,6 +116,29 @@ PluginComponent {
             }
         }
         return active || next;
+    }
+    function buildRotationEvents(events, current, now, nextCount) {
+        if (!current || nextCount <= 0)
+            return [];
+
+        var timed = events.filter(ev => !ev.allDay && ev.status !== "cancelled"
+            && new Date(ev.end || ev.start).getTime() > now);
+        timed.sort((a, b) => new Date(a.start).getTime() - new Date(b.start).getTime());
+        var currentKey = CalendarUtils.eventKey(current);
+        var currentIndex = timed.findIndex(ev => CalendarUtils.eventKey(ev) === currentKey);
+        if (currentIndex < 0)
+            return [];
+        var rotation = [timed[currentIndex]];
+        for (var i = currentIndex + 1; i < timed.length && rotation.length <= nextCount; i++) {
+            if (new Date(timed[i].start).getTime() > now)
+                rotation.push(timed[i]);
+        }
+        return rotation;
+    }
+
+    function advanceRotation() {
+        if (rotationEvents.length > 1)
+            rotationIndex = (rotationIndex + 1) % rotationEvents.length;
     }
     readonly property int upcomingCount: {
         var n = 0;
@@ -233,17 +277,17 @@ PluginComponent {
     }
 
     function formatEventSchedule() {
-        if (!eventStart)
+        if (!shownStart)
             return "";
 
-        var start = eventDate(eventStart, eventAllDay);
+        var start = eventDate(shownStart, shownAllDay);
         var day = formatLocalDate(start, "dddd d MMMM");
-        if (eventAllDay)
+        if (shownAllDay)
             return day + " · All day";
 
         var schedule = day + " · " + root.formatTime(start);
-        if (eventEnd)
-            schedule += "–" + root.formatTime(eventDate(eventEnd, false));
+        if (shownEnd)
+            schedule += "–" + root.formatTime(eventDate(shownEnd, false));
 
         return schedule;
     }
@@ -611,6 +655,13 @@ PluginComponent {
         }
     }
 
+    Timer {
+        interval: Math.max(1, root.rotateIntervalSeconds) * 1000
+        running: root.rotationActive
+        repeat: true
+        onTriggered: root.rotateDisplayRequested()
+    }
+
     function showEventTooltip(pill) {
         if (!root.showTooltip || !pill || !root.parentScreen)
             return ;
@@ -755,7 +806,7 @@ PluginComponent {
 
                     StyledText {
                         width: parent.width
-                        text: root.hasEvent ? root.eventSummary : "No events"
+                        text: root.hasEvent ? root.shownSummary : "No events"
                         font.pixelSize: Theme.fontSizeSmall
                         font.weight: Font.Medium
                         color: Theme.surfaceText
@@ -764,7 +815,7 @@ PluginComponent {
 
                     StyledText {
                         width: parent.width
-                        visible: root.hasEvent && root.eventStart !== ""
+                        visible: root.hasEvent && root.shownStart !== ""
                         text: root.formatEventSchedule()
                         font.pixelSize: Theme.fontSizeSmall
                         color: Theme.surfaceVariantText
@@ -783,7 +834,7 @@ PluginComponent {
                     Row {
                         width: parent.width
                         spacing: Theme.spacingXS
-                        visible: root.hasEvent && root.eventLocation !== ""
+                        visible: root.hasEvent && root.shownLocation !== ""
 
                         DIcon {
                             name: "location_on"
@@ -793,7 +844,7 @@ PluginComponent {
 
                         StyledText {
                             width: parent.width - Theme.iconSizeSmall - Theme.spacingXS
-                            text: root.eventLocation
+                            text: root.shownLocation
                             font.pixelSize: Theme.fontSizeSmall
                             color: Theme.surfaceVariantText
                             wrapMode: Text.WordWrap
@@ -804,8 +855,8 @@ PluginComponent {
 
                     StyledText {
                         width: parent.width
-                        visible: root.hasEvent && root.eventDescription !== ""
-                        text: root.eventDescription
+                        visible: root.hasEvent && root.shownDescription !== ""
+                        text: root.shownDescription
                         font.pixelSize: Theme.fontSizeSmall
                         color: Theme.surfaceVariantText
                         wrapMode: Text.WordWrap
@@ -816,16 +867,16 @@ PluginComponent {
                     Row {
                         width: parent.width
                         spacing: Theme.spacingXS
-                        visible: root.hasEvent && (root.eventMeetingUrl !== "" || root.eventUrl !== "")
+                        visible: root.hasEvent && (root.shownMeetingUrl !== "" || root.shownUrl !== "")
 
                         DIcon {
-                            name: root.eventMeetingUrl !== "" ? "videocam" : "link"
+                            name: root.shownMeetingUrl !== "" ? "videocam" : "link"
                             size: Theme.iconSizeSmall
                             color: Theme.primary
                         }
 
                         StyledText {
-                            text: root.eventMeetingUrl !== "" ? "Meeting link available" : "Event link available"
+                            text: root.shownMeetingUrl !== "" ? "Meeting link available" : "Event link available"
                             font.pixelSize: Theme.fontSizeSmall
                             color: Theme.primary
                         }
@@ -994,27 +1045,45 @@ PluginComponent {
                     contentHeight: eventColumn.implicitHeight
                     clip: true
 
-                    // Open the list scrolled to today, not to the oldest
-                    // past day. DMS keeps popout contents warm after close,
-                    // so reset on every open instead of relying only on
-                    // Component.onCompleted. Once open, stop pinning as soon
-                    // as the user scrolls in either direction.
+                    // Open at the next highlighted event when configured,
+                    // otherwise at today. DMS keeps popout contents warm after
+                    // close, so reset on every open. Once open, stop pinning
+                    // as soon as the user scrolls in either direction.
                     property bool userScrolled: false
                     readonly property real todayY: Math.max(0, Math.min(root.agendaTodayOffset, contentHeight - height))
+                    readonly property real nextEventY: {
+                        var key = CalendarUtils.eventKey(root.highlightedEvent);
+                        if (!key)
+                            return todayY;
+                        for (var i = 0; i < root.agendaModel.length; i++) {
+                            if (root.agendaModel[i].kind === "event" && CalendarUtils.eventKey(root.agendaModel[i].ev) === key)
+                                return Math.max(0, Math.min(CalendarUtils.rowOffset(root.agendaModel, i), contentHeight - height));
+                        }
+                        return todayY;
+                    }
+                    readonly property real initialY: root.openAtNextEvent ? nextEventY : todayY
 
-                    function pinToToday() {
+                    function pinToInitial() {
                         if (!userScrolled)
-                            contentY = todayY;
+                            contentY = initialY;
 
                     }
 
-                    function resetToToday() {
+                    function pinToToday() {
+                        pinToInitial();
+                    }
+
+                    function resetToInitial() {
                         userScrolled = false;
                         todayJumpAnim.stop();
-                        pinToToday();
-                        // The popout viewport can finish sizing one event-loop
-                        // turn after the opened signal.
-                        Qt.callLater(() => agendaFlick.pinToToday());
+                        pinToInitial();
+                        Qt.callLater(() => agendaFlick.pinToInitial());
+                    }
+
+                    function resetToToday() {
+                        userScrolled = true;
+                        todayJumpAnim.stop();
+                        contentY = todayY;
                     }
 
                     function scrollSelectedIntoView() {
@@ -1026,9 +1095,9 @@ PluginComponent {
                     }
 
                     onMovementStarted: userScrolled = true
-                    onTodayYChanged: pinToToday()
+                    onTodayYChanged: pinToInitial()
                     onHeightChanged: scrollSelectedIntoView()
-                    Component.onCompleted: resetToToday()
+                    Component.onCompleted: resetToInitial()
 
                     NumberAnimation {
                         id: todayJumpAnim
@@ -1228,7 +1297,7 @@ PluginComponent {
 
                     function onOpened() {
                         root.agendaOpenRequested = false;
-                        agendaFlick.resetToToday();
+                        agendaFlick.resetToInitial();
                         root.selectedEventKey = "";
                         root.syncAgendaSelection(CalendarUtils.eventKey(root.highlightedEvent));
                         Qt.callLater(() => {
@@ -1360,18 +1429,18 @@ PluginComponent {
                         id: summaryText
 
                         visible: hPill.showTitle
-                        width: root.scrollTitle ? implicitWidth : summaryClip.width
-                        text: root.hasEvent ? root.eventSummary : "No events"
+                        width: root.scrollTitle || root.rotationActive ? implicitWidth : summaryClip.width
+                        text: root.hasEvent ? root.shownSummary : "No events"
                         textFormat: Text.PlainText
                         wrapMode: Text.NoWrap
                         maximumLineCount: 1
-                        elide: root.scrollTitle ? Text.ElideNone : Text.ElideRight
+                        elide: root.scrollTitle || root.rotationActive ? Text.ElideNone : Text.ElideRight
                         font.pixelSize: root.barLabelSize
                         color: Theme.surfaceText
                     }
 
                     SequentialAnimation {
-                        running: root.scrollTitle && hPill.showTitle && hPill.visible && summaryClip.width > 0 && summaryClip.overflow > 0
+                        running: root.scrollTitle && !root.rotationActive && hPill.showTitle && hPill.visible && summaryClip.width > 0 && summaryClip.overflow > 0
                         loops: Animation.Infinite
                         onRunningChanged: if (!running) summaryText.x = 0
 
@@ -1394,6 +1463,63 @@ PluginComponent {
                             duration: 300
                         }
 
+                    }
+
+                    SequentialAnimation {
+                        id: cycleSlide
+                        onRunningChanged: {
+                            if (!running) {
+                                summaryText.x = 0;
+                                hTime.opacity = 1;
+                            }
+                        }
+
+                        ParallelAnimation {
+                            NumberAnimation {
+                                target: summaryText
+                                property: "x"
+                                to: -summaryText.implicitWidth
+                                duration: hPill.showTitle ? 450 : 0
+                                easing.type: Easing.InCubic
+                            }
+                            NumberAnimation {
+                                target: hTime
+                                property: "opacity"
+                                to: 0
+                                duration: hPill.showTime ? 180 : 0
+                            }
+                        }
+
+                        ScriptAction {
+                            script: {
+                                root.advanceRotation();
+                                summaryText.x = summaryClip.width;
+                            }
+                        }
+
+                        ParallelAnimation {
+                            NumberAnimation {
+                                target: summaryText
+                                property: "x"
+                                to: 0
+                                duration: hPill.showTitle ? 450 : 0
+                                easing.type: Easing.OutCubic
+                            }
+                            NumberAnimation {
+                                target: hTime
+                                property: "opacity"
+                                to: 1
+                                duration: hPill.showTime ? 300 : 0
+                            }
+                        }
+                    }
+
+                    Connections {
+                        target: root
+                        function onRotateDisplayRequested() {
+                            if (root.rotationActive && hPill.visible)
+                                cycleSlide.restart();
+                        }
                     }
 
                 }
@@ -1421,9 +1547,9 @@ PluginComponent {
                 JoinButton {
                     id: hJoin
                     compact: true
-                    visible: root.hasEvent && root.meetingLink(root.eventMeetingUrl) !== ""
+                    visible: root.hasEvent && root.meetingLink(root.shownMeetingUrl) !== ""
                     anchors.verticalCenter: parent.verticalCenter
-                    onClicked: root.joinMeeting(root.eventMeetingUrl)
+                    onClicked: root.joinMeeting(root.shownMeetingUrl)
                 }
 
             }
@@ -1473,21 +1599,85 @@ PluginComponent {
                     anchors.horizontalCenter: parent.horizontalCenter
                 }
 
-                StyledText {
+                Item {
+                    id: verticalSummaryClip
                     width: root.widgetThickness
-                    text: root.hasEvent ? root.eventSummary : "—"
-                    textFormat: Text.PlainText
-                    font.pixelSize: root.barLabelSize
-                    color: Theme.surfaceText
-                    horizontalAlignment: Text.AlignHCenter
-                    wrapMode: Text.NoWrap
-                    maximumLineCount: 1
-                    elide: Text.ElideRight
+                    height: verticalSummary.implicitHeight
+                    clip: true
                     anchors.horizontalCenter: parent.horizontalCenter
                     visible: root.pillDisplayMode !== "countdownOnly"
+
+                    StyledText {
+                        id: verticalSummary
+                        width: root.rotationActive ? implicitWidth : verticalSummaryClip.width
+                        text: root.hasEvent ? root.shownSummary : "—"
+                        textFormat: Text.PlainText
+                        font.pixelSize: root.barLabelSize
+                        color: Theme.surfaceText
+                        horizontalAlignment: root.rotationActive ? Text.AlignLeft : Text.AlignHCenter
+                        wrapMode: Text.NoWrap
+                        maximumLineCount: 1
+                        elide: root.rotationActive ? Text.ElideNone : Text.ElideRight
+                    }
+
+                    SequentialAnimation {
+                        id: verticalCycleSlide
+                        onRunningChanged: if (!running) {
+                            verticalSummary.x = 0;
+                            verticalTime.opacity = 1;
+                        }
+
+                        ParallelAnimation {
+                            NumberAnimation {
+                                target: verticalSummary
+                                property: "x"
+                                to: -verticalSummary.implicitWidth
+                                duration: 450
+                                easing.type: Easing.InCubic
+                            }
+                            NumberAnimation {
+                                target: verticalTime
+                                property: "opacity"
+                                to: 0
+                                duration: 180
+                            }
+                        }
+
+                        ScriptAction {
+                            script: {
+                                root.advanceRotation();
+                                verticalSummary.x = verticalSummaryClip.width;
+                            }
+                        }
+
+                        ParallelAnimation {
+                            NumberAnimation {
+                                target: verticalSummary
+                                property: "x"
+                                to: 0
+                                duration: 450
+                                easing.type: Easing.OutCubic
+                            }
+                            NumberAnimation {
+                                target: verticalTime
+                                property: "opacity"
+                                to: 1
+                                duration: 300
+                            }
+                        }
+                    }
+
+                    Connections {
+                        target: root
+                        function onRotateDisplayRequested() {
+                            if (root.rotationActive && vPill.visible && verticalSummaryClip.visible)
+                                verticalCycleSlide.restart();
+                        }
+                    }
                 }
 
                 NumericText {
+                    id: verticalTime
                     width: root.widgetThickness
                     text: root.compactTimeText
                     reserveText: "99d"
@@ -1503,9 +1693,9 @@ PluginComponent {
                 JoinButton {
                     compact: true
                     iconOnly: true
-                    visible: root.hasEvent && root.meetingLink(root.eventMeetingUrl) !== ""
+                    visible: root.hasEvent && root.meetingLink(root.shownMeetingUrl) !== ""
                     anchors.horizontalCenter: parent.horizontalCenter
-                    onClicked: root.joinMeeting(root.eventMeetingUrl)
+                    onClicked: root.joinMeeting(root.shownMeetingUrl)
                 }
 
             }
