@@ -40,7 +40,7 @@ functions(WIDGET, ['dateKey', 'eventDate', 'formatLocalDate', 'buildAgenda', 'se
     'refreshAll', 'reloadEvents', 'queueFetch'], context);
 // The scroll helper lives inside the agenda Flickable, so it reads contentY,
 // height and contentHeight from its own scope; the vm globals stand in.
-functions(WIDGET, ['scrollSelectedIntoView', 'pinToToday', 'resetToToday'], context, 20);
+functions(WIDGET, ['scrollSelectedIntoView', 'pinToInitial', 'pinToToday', 'resetToInitial', 'resetToToday'], context, 20);
 // todayY is a binding on the Flickable; evaluate the real expression instead
 // of guessing where "today" sits.
 liveBinding(WIDGET, 'todayY', context);
