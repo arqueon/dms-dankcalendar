@@ -10,7 +10,7 @@ const context = vm.createContext({
     hideEventTooltip() { tooltipHidden++; },
     Quickshell: { execDetached: command => opened.push(Array.from(command)) },
 });
-for (const name of ['selectHighlightedEvent', 'meetingLink', 'joinMeeting']) {
+for (const name of ['selectHighlightedEvent', 'meetingLink', 'joinMeeting', 'calendarColor']) {
     const fn = qml.match(new RegExp('    function ' + name + '\\([^]*?\\n    \\}'));
     assert.ok(fn, 'Missing QML function: ' + name);
     vm.runInContext(fn[0], context);
@@ -37,4 +37,12 @@ for (const link of ['', null, 'javascript:alert(1)', 'file:///tmp/demo', 'https:
 }
 assert.equal(opened.length, 1);
 assert.equal(tooltipHidden, 1);
+// Calendar colors are used only when they are plain hex colors.
+assert.equal(context.calendarColor({calendarColor: '#4986e7'}), '#4986e7');
+assert.equal(context.calendarColor({calendarColor: '#ABC'}), '#ABC', 'short and upper-case hex is accepted');
+assert.equal(context.calendarColor({}), '', 'no calendar color falls back to the theme');
+assert.equal(context.calendarColor(null), '', 'header rows carry no event');
+assert.equal(context.calendarColor(undefined), '');
+for (const bogus of ['', 'blue', '#12345', '#4986e7ff', 'rgb(0,0,0)', 42, null, {}])
+    assert.equal(context.calendarColor({calendarColor: bogus}), '', 'unusable value ' + JSON.stringify(bogus) + ' falls back');
 console.log('Widget join/highlight tests: ok');

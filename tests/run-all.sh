@@ -14,6 +14,7 @@ run() {
 }
 
 run bash "$here/test-next-event.sh"
+run bash "$here/test-agenda-events.sh"
 for suite in "$here"/test-*.js; do
     run node "$suite"
 done

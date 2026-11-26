@@ -34,6 +34,8 @@ events dimmed, and a floating **Today** chip to jump back when you scroll away.
 The agenda covers a configurable window (default 7 days back, 30 ahead), grouped by
 day with shaded headers — today tinted, happening-now events in green, past events
 dimmed — and a divider each time the week changes. It always opens scrolled to today.
+Each event's side stripe shows its calendar's color from dcal; events whose
+calendar has no color keep the theme colors.
 
 The current timed event is highlighted with **Now**, or the next timed event with
 **Next** when nothing is in progress. All-day and cancelled events do not take this
